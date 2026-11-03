@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - RETINAGUARD_ENV=development
+      - RETINAGUARD_PORT=8000
+      - RETINAGUARD_PHI_ENCRYPTION_KEY=${RETINAGUARD_PHI_ENCRYPTION_KEY}
+      - DATABASE_URL=postgresql://retinaguard:retinaguard@db:5432/retinaguard_db
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./backend:/app/backend
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=retinaguard
+      - POSTGRES_PASSWORD=retinaguard
+      - POSTGRES_DB=retinaguard_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+

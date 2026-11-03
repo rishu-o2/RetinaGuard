@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retinaguard-monorepo"
+version = "0.1.0"
+description = "RetinaGuard Diabetic Retinopathy Clinical Decision Support System"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "RetinaGuard Team" }]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests", "ml/tests"]
+pythonpath = [".", "backend/src", "ml/src", "src"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
