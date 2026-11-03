@@ -1,0 +1,88 @@
+# ==============================================================================
+# RetinaGuard - Clinical Decision Rules Configuration
+# Standard: ICDR (International Clinical Diabetic Retinopathy Scale 0-4)
+# Primary Guidelines:
+#   - AIOS: All India Ophthalmological Society Clinical Practice Guidelines (2020)
+#   - RSSDI: Research Society for the Study of Diabetes in India Clinical Recommendations (2022)
+#   - ICMR: Indian Council of Medical Research Type 2 Diabetes Guidelines (2018)
+#   - ICO: International Council of Ophthalmology Guidelines for Diabetic Eye Care (2017)
+#
+# NOTE: ALL THRESHOLDS AND INTERVALS REQUIRE EXPLICIT CLINICAL COMMITTEE SIGN-OFF.
+# ==============================================================================
+
+metadata:
+  version: "1.0.0"
+  country_context: "IN"
+  governing_bodies: ["AIOS", "RSSDI", "ICMR", "ICO"]
+  last_updated: "2026-11-02"
+
+# ------------------------------------------------------------------------------
+# Referral Classification by ICDR Grade
+# Rule: Any grade >= 2 (Moderate NPDR or worse) is referable to an ophthalmologist.
+# Source: AIOS & RSSDI Joint Guidelines 2020 / ICO 2017 Table 2.
+# ------------------------------------------------------------------------------
+icdr_grades:
+  0:
+    name: "No Apparent DR"
+    referable: false                  # Source: ICO 2017 / AIOS 2020 # NEEDS CLINICAL REVIEW
+    base_urgency: "ROUTINE"           # Source: RSSDI 2022 # NEEDS CLINICAL REVIEW
+    base_interval_months: 12          # Source: RSSDI 2022 / ICMR 2018 (Annual screening) # NEEDS CLINICAL REVIEW
+    description: "No microaneurysms, hemorrhages, or other vascular lesions detected."
+
+  1:
+    name: "Mild Non-Proliferative DR (NPDR)"
+    referable: false                  # Source: ICO 2017 / AIOS 2020 (Microaneurysms only) # NEEDS CLINICAL REVIEW
+    base_urgency: "ROUTINE"           # Source: RSSDI 2022 # NEEDS CLINICAL REVIEW
+    base_interval_months: 12          # Source: RSSDI 2022 / AIOS 2020 (Annual rescreening) # NEEDS CLINICAL REVIEW
+    description: "Microaneurysms only."
+
+  2:
+    name: "Moderate Non-Proliferative DR (NPDR)"
+    referable: true                   # Source: AIOS 2020 Section 4 / ICO 2017 # NEEDS CLINICAL REVIEW
+    base_urgency: "PRIORITY"          # Source: AIOS 2020 # NEEDS CLINICAL REVIEW
+    base_interval_months: 3           # Source: AIOS 2020 Table 3 (Refer within 1-3 months) # NEEDS CLINICAL REVIEW
+    description: "More than just microaneurysms but less than severe NPDR."
+
+  3:
+    name: "Severe Non-Proliferative DR (NPDR)"
+    referable: true                   # Source: AIOS 2020 / ICO 2017 # NEEDS CLINICAL REVIEW
+    base_urgency: "URGENT"            # Source: AIOS 2020 Section 4.2 # NEEDS CLINICAL REVIEW
+    base_interval_months: 1           # Source: AIOS 2020 (Refer within 2-4 weeks / <= 1 month) # NEEDS CLINICAL REVIEW
+    description: "4:2:1 rule: >20 intraretinal hemorrhages in 4 quadrants, venous beading in 2+, or IRMA in 1+."
+
+  4:
+    name: "Proliferative DR (PDR)"
+    referable: true                   # Source: AIOS 2020 / ICO 2017 # NEEDS CLINICAL REVIEW
+    base_urgency: "EMERGENCY"         # Source: AIOS 2020 Section 4.3 (Immediate evaluation) # NEEDS CLINICAL REVIEW
+    base_interval_months: 0           # Source: AIOS 2020 (Within 48 hours to 1 week) # NEEDS CLINICAL REVIEW
+    description: "Neovascularization of disc/elsewhere, preretinal or vitreous hemorrhage."
+
+# ------------------------------------------------------------------------------
+# Patient Context Modifiers (Elevates Urgency / Reduces Follow-up)
+# Sources: RSSDI 2022 Ch. 14, AIOS 2020 Pregnancy Guidelines, ICMR 2018
+# ------------------------------------------------------------------------------
+modifiers:
+  pregnancy:
+    applies_to_female_only: true
+    min_urgency: "PRIORITY"           # Source: AIOS 2020 / RSSDI 2022 (Rapid progression risk) # NEEDS CLINICAL REVIEW
+    max_interval_months: 3            # Source: RSSDI 2022 Ch. 14 (Every trimester screening) # NEEDS CLINICAL REVIEW
+    notes: "Pregnancy in pre-existing diabetes can cause accelerated DR progression."
+
+  high_risk_glycemic_control:
+    hba1c_threshold_percent: 10.0     # Source: RSSDI 2022 Section 6 (Severely uncontrolled) # NEEDS CLINICAL REVIEW
+    max_interval_months: 6            # Source: RSSDI 2022 # NEEDS CLINICAL REVIEW
+    upgrade_urgency_if_grade_ge: 1    # Upgrade to PRIORITY if mild DR present # NEEDS CLINICAL REVIEW
+
+  long_standing_diabetes:
+    duration_years_threshold: 15      # Source: ICMR 2018 / RSSDI 2022 (High microvascular risk) # NEEDS CLINICAL REVIEW
+    max_interval_months: 6            # Source: RSSDI 2022 # NEEDS CLINICAL REVIEW
+    upgrade_urgency_if_grade_ge: 2    # Upgrade to URGENT if moderate DR # NEEDS CLINICAL REVIEW
+
+# ------------------------------------------------------------------------------
+# Confidence Threshold for Autonomous Decision-Support Pass
+# If ML confidence is below this value, rules engine MUST return UNCERTAIN.
+# ------------------------------------------------------------------------------
+confidence_thresholds:
+  min_acceptable_confidence: 0.70     # Source: Clinical consensus recommendation # NEEDS CLINICAL REVIEW
+  low_confidence_action: "UNCERTAIN_REFER_FOR_CLINICIAN_REVIEW"
+

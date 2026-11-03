@@ -1,0 +1,31 @@
+{
+  "language": "en",
+  "language_name": "English",
+  "grades": {
+    "0": "No Apparent Diabetic Retinopathy",
+    "1": "Mild Non-Proliferative Diabetic Retinopathy",
+    "2": "Moderate Non-Proliferative Diabetic Retinopathy",
+    "3": "Severe Non-Proliferative Diabetic Retinopathy",
+    "4": "Proliferative Diabetic Retinopathy"
+  },
+  "urgency": {
+    "ROUTINE": "Routine screening",
+    "PRIORITY": "Priority specialist referral",
+    "URGENT": "Urgent retinal specialist consultation",
+    "EMERGENCY": "Immediate specialist evaluation"
+  },
+  "referral": {
+    "REFERABLE": "Referral recommended for comprehensive dilated eye exam",
+    "NON_REFERABLE": "No immediate ophthalmologist referral required",
+    "UNCERTAIN": "Assessment uncertain - In-person clinician review mandatory"
+  },
+  "follow_up": {
+    "interval_months": "Recommended follow-up: within {months} months",
+    "immediate": "Recommended follow-up: immediately (within 48 hours to 1 week)"
+  },
+  "warnings": {
+    "decision_support_only": "RetinaGuard is an assistive decision-support tool, not an autonomous medical diagnosis. All findings must be confirmed by a licensed clinician.",
+    "quality_failure": "Image quality is suboptimal for reliable screening. Please recapture or conduct an in-person slit lamp examination."
+  }
+}
+

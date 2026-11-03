@@ -1,0 +1,45 @@
+# ==============================================================================
+# RetinaGuard - ML Training Configuration
+# Model: EfficientNet Dual-Head (Categorical Logits + Ordinal Regression)
+# ==============================================================================
+
+model:
+  backbone: "efficientnet_b0"           # timm / torchvision identifier (b0, b1, b2, b3, b4)
+  num_classes: 5                        # ICDR grades 0-4
+  pretrained: true                      # Pretrained on ImageNet
+  dropout_rate: 0.30
+  image_size: [512, 512]                # [height, width]
+
+training:
+  epochs: 25
+  batch_size: 16
+  num_workers: 4
+  mixed_precision: true                 # torch.amp (FP16 / BF16)
+  gradient_clip_val: 1.0                # Max gradient norm to prevent instability
+  early_stopping_patience: 6            # Epochs without validation QWK improvement
+  save_dir: "models/checkpoints"
+  onnx_export_path: "models/onnx/retinaguard_dr_efficientnet.onnx"
+
+optimizer:
+  name: "AdamW"
+  learning_rate: 0.0003
+  weight_decay: 0.01
+
+scheduler:
+  name: "CosineAnnealingLR"
+  T_max: 25
+  eta_min: 0.000005
+
+loss:
+  categorical_loss: "cross_entropy"     # "cross_entropy" or "focal"
+  class_weighting: "effective_samples"  # "effective_samples" or "inverse_frequency"
+  beta: 0.999                           # Hyperparameter for effective samples weighting
+  ordinal_loss_weight: 0.50             # Weight lambda for ordinal BCE loss
+  focal_gamma: 2.0                      # Used if categorical_loss is "focal"
+
+logging:
+  logger_type: "file"                   # "file", "wandb", or "mlflow"
+  log_dir: "logs/training"
+  project_name: "retinaguard-dr-training"
+  experiment_name: "efficientnet_b0_dualhead_run1"
+

@@ -1,0 +1,56 @@
+# ==============================================================================
+# RetinaGuard - Image Quality & Pre-Inference Gate Configuration
+# Standards: NHS Diabetic Eye Screening Programme (DESP) / AIOS Screening Guidelines
+#
+# NOTE: ALL THRESHOLDS REQUIRE CLINICAL COMMITTEE REVIEW & EMPIRICAL CALIBRATION.
+# ==============================================================================
+
+version: "1.1.0"
+
+profiles:
+  tabletop:
+    name: "Tabletop Fundus Camera (Zeiss, Topcon, Canon, Kowa)"
+    description: "High-resolution desktop camera in fixed darkroom or mydriatic setup."
+    min_resolution_width: 1024         # NHS DESP standard minimum # NEEDS CLINICAL REVIEW
+    min_resolution_height: 1024        # NHS DESP standard minimum # NEEDS CLINICAL REVIEW
+    blur_variance_threshold: 100.0     # Laplacian variance inside fundus mask # NEEDS CLINICAL REVIEW
+    fov_min_area_ratio: 0.35           # Fundus must occupy at least 35% of image area # NEEDS CLINICAL REVIEW
+    fov_min_circularity: 0.65          # 4*pi*area / perimeter^2 circularity metric # NEEDS CLINICAL REVIEW
+    mean_luminance_min: 40.0           # Grayscale luminance inside mask (0-255) # NEEDS CLINICAL REVIEW
+    mean_luminance_max: 200.0          # Upper limit to avoid global over-saturation # NEEDS CLINICAL REVIEW
+    p5_luminance_min: 15.0             # 5th percentile brightness to detect severe underexposure # NEEDS CLINICAL REVIEW
+    p95_luminance_max: 245.0           # 95th percentile brightness to detect flash saturation # NEEDS CLINICAL REVIEW
+    underexposure_max_ratio: 0.15      # Fraction of mask pixels with luminance < 15 # NEEDS CLINICAL REVIEW
+    overexposure_max_ratio: 0.08       # Fraction of mask pixels with luminance > 245 # NEEDS CLINICAL REVIEW
+
+  smartphone_portable:
+    name: "Handheld / Smartphone-Based Fundus Camera (Remidio, Forus 3nethra)"
+    description: "Portable non-mydriatic camera used in rural PHCs and screening camps."
+    min_resolution_width: 640          # Mobile camera sensor resolution cutoff # NEEDS CLINICAL REVIEW
+    min_resolution_height: 640         # Mobile camera sensor resolution cutoff # NEEDS CLINICAL REVIEW
+    blur_variance_threshold: 60.0      # Lower threshold tolerant to handheld motion # NEEDS CLINICAL REVIEW
+    fov_min_area_ratio: 0.28           # Non-mydriatic optical aperture ratio # NEEDS CLINICAL REVIEW
+    fov_min_circularity: 0.55          # Tolerance for oval optical compression # NEEDS CLINICAL REVIEW
+    mean_luminance_min: 30.0           # Lenient lower luminance for mobile LED flash # NEEDS CLINICAL REVIEW
+    mean_luminance_max: 215.0          # # NEEDS CLINICAL REVIEW
+    p5_luminance_min: 10.0             # # NEEDS CLINICAL REVIEW
+    p95_luminance_max: 250.0           # # NEEDS CLINICAL REVIEW
+    underexposure_max_ratio: 0.25      # Lenient peripheral vignetting tolerance # NEEDS CLINICAL REVIEW
+    overexposure_max_ratio: 0.12       # Corneal reflex / flash glare tolerance # NEEDS CLINICAL REVIEW
+
+failure_messages:
+  BLUR:
+    en: "Image is too blurry to evaluate retinal microvasculature. Please stabilize the camera and recapture."
+    hi: "छवि बहुत धुंधली है। कृपया कैमरे को स्थिर रखें और दोबारा तस्वीर लें।"
+  UNDEREXPOSED:
+    en: "Image is too dark. Increase illumination or ensure patient's pupil is adequately aligned."
+    hi: "तस्वीर बहुत अंधेरी है। कृपया रोशनी बढ़ाएं या पुतली की स्थिति सही करके दोबारा तस्वीर लें।"
+  OVEREXPOSED:
+    en: "Corneal glare or excessive flash is obscuring the retina. Adjust flash angle and recapture."
+    hi: "फ्लैश की चमक के कारण रेटिना स्पष्ट नहीं दिख रहा है। कृपया फ्लैश कम करके दोबारा प्रयास करें।"
+  INVALID_FOV:
+    en: "Could not detect a valid circular retinal field of view. Ensure the lens is centered on the eye."
+    hi: "रेटिना का स्पष्ट गोलाकार दृश्य नहीं मिला। कृपया लेंस को आंख के केंद्र में रखकर दोबारा लें।"
+  RESOLUTION_TOO_LOW:
+    en: "Image resolution is below the minimum required standard for diagnostic screening."
+    hi: "छवि का रिज़ॉल्यूशन सटीक चिकित्सीय जांच के लिए बहुत कम है।"
