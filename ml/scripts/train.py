@@ -315,10 +315,14 @@ def train(
             np.array(val_preds),
             y_probs=np.vstack(val_probs) if val_probs else None,
         )
-        val_qwk = eval_metrics.get("quadratic_weighted_kappa", 0.0)
-        ref_sens = eval_metrics.get("referable_dr_sensitivity", 0.0)
-        ref_spec = eval_metrics.get("referable_dr_specificity", 0.0)
-        auc = eval_metrics.get("auc_roc_ovr_macro", 0.0)
+        # Use direct indexing so a missing key raises KeyError immediately
+        # (cannot silently become 0.0 the way .get(..., 0.0) would).
+        val_qwk  = eval_metrics["qwk"]
+        ref_sens = eval_metrics["sensitivity"]
+        ref_spec = eval_metrics["specificity"]
+        # referable_dr_auc is only present when y_probs was supplied; fall back
+        # to 0.0 only in the (impossible during training) case it is absent.
+        auc      = eval_metrics.get("referable_dr_auc", 0.0)
 
         ep_duration = time.time() - ep_t0
 

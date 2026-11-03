@@ -15,7 +15,7 @@ import argparse
 import csv
 import sys
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -48,10 +48,10 @@ def compute_bootstrap_cis(
         boot_true = y_true[indices]
         boot_pred = y_pred[indices]
 
-        # Compute metrics
+        # Compute metrics — use direct indexing so a missing key raises KeyError
         res = evaluate_cohort(boot_true, boot_pred)
-        qwk_samples.append(res["quadratic_weighted_kappa"])
-        sens_samples.append(res["referable_dr_sensitivity"])
+        qwk_samples.append(res["qwk"])
+        sens_samples.append(res["sensitivity"])
 
     qwk_ci = (float(np.percentile(qwk_samples, 2.5)), float(np.percentile(qwk_samples, 97.5)))
     sens_ci = (float(np.percentile(sens_samples, 2.5)), float(np.percentile(sens_samples, 97.5)))
@@ -191,10 +191,10 @@ def evaluate_model(
     print(f"  EVALUATION REPORT: {split_name.upper()} SPLIT")
     print(f"{'='*65}")
     print(f"  Samples Evaluated            : {len(y_true)}")
-    print(f"  Quadratic Weighted Kappa     : {metrics['quadratic_weighted_kappa']:.4f} (95% CI: [{metrics['qwk_95_ci'][0]:.4f}, {metrics['qwk_95_ci'][1]:.4f}])")
-    print(f"  Referable DR Sensitivity     : {metrics['referable_dr_sensitivity']:.4f} (95% CI: [{metrics['referable_sens_95_ci'][0]:.4f}, {metrics['referable_sens_95_ci'][1]:.4f}])")
-    print(f"  Referable DR Specificity     : {metrics['referable_dr_specificity']:.4f}")
-    print(f"  Macro ROC-AUC                : {metrics.get('auc_roc_ovr_macro', 0.0):.4f}")
+    print(f"  Quadratic Weighted Kappa     : {metrics['qwk']:.4f} (95% CI: [{metrics['qwk_95_ci'][0]:.4f}, {metrics['qwk_95_ci'][1]:.4f}])")
+    print(f"  Referable DR Sensitivity     : {metrics['sensitivity']:.4f} (95% CI: [{metrics['referable_sens_95_ci'][0]:.4f}, {metrics['referable_sens_95_ci'][1]:.4f}])")
+    print(f"  Referable DR Specificity     : {metrics['specificity']:.4f}")
+    print(f"  Referable DR AUC             : {metrics.get('referable_dr_auc', 0.0):.4f}")
     print(f"\n  Per-Class Recall:")
     for g in range(5):
         print(f"    Grade {g} ({class_names[g]:<10}): {metrics['per_class_recall'].get(g, 0.0):.4f}")
