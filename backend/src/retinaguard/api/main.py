@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(screen_router)
+app.include_router(screen_router, prefix="/api/v1")
 
 
 @app.get("/")

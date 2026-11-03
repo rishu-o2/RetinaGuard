@@ -186,8 +186,12 @@ class ScreeningResult(BaseModel):
     previous_audit_hash: str | None = None
     audit_hash: str | None = None
 
-    # Extensible metadata
+    # Extensible metadata & Agent Additions
     guideline_sources: list[str] = Field(
         default_factory=lambda: ["AIOS 2020", "RSSDI 2022", "ICMR 2018", "ICO 2017"]
     )
+    voice_text: str | None = None
+    guideline_explanation: str | None = None
+    guideline_citations: list[dict] = Field(default_factory=list)
+    guideline_source_note: str | None = None
 

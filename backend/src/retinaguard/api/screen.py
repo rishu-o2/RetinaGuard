@@ -24,6 +24,7 @@ import numpy as np
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
+from retinaguard.agents.graph import run_screening_pipeline
 from retinaguard.core.logging import get_logger
 from retinaguard.core.models import (
     CameraType,
@@ -159,33 +160,16 @@ async def screen_image(
         raise HTTPException(status_code=422, detail=f"Image decode failed: {exc}") from exc
 
     h, w = img_rgb.shape[:2]
-    screening_id = str(uuid4())
-
-    logger.info(
-        "Screen request: screening_id=%s patient=%s eye=%s camera=%s size=%dx%d",
-        screening_id, patient_pseudonym_id, eye_side, camera_type, w, h,
+    image_metadata = ImageMetadata(
+        image_sha256=image_sha256,
+        camera_type=camera_type,
+        eye_side=eye_side,
+        height=h,
+        width=w,
     )
 
-    # ── 2. Quality gate ───────────────────────────────────────────────────
-    quality_result = _get_quality().evaluate(img_rgb, camera_type=camera_type)
-    quality_passed = quality_result.passed
-
-    # ── 3. OOD detection ─────────────────────────────────────────────────
-    ood_result = _get_ood().evaluate(img_rgb)
-    ood_passed = ood_result.is_in_distribution
-
-    # ── 4. ONNX inference (skipped if quality/OOD failed for speed) ───────
-    inference_output: Optional[InferenceOutput] = None
-    if quality_passed and ood_passed:
-        inference_output = _get_inference().predict(img_rgb)
-
-    # ── 5. Clinical rules engine ─────────────────────────────────────────
-    # Build minimal PatientContext — consent is set as system-level for API calls.
-    # Full consent workflow goes through a separate /consent endpoint (future).
-    from datetime import datetime, timezone
-    import hashlib as _hl
     consent = DPDPProcessingConsent(
-        patient_identifier_hash=_hl.sha256(patient_pseudonym_id.encode()).hexdigest(),
+        patient_identifier_hash=hashlib.sha256(patient_pseudonym_id.encode()).hexdigest(),
         purpose="DIABETIC_RETINOPATHY_SCREENING",  # type: ignore[arg-type]
         notice_version="1.0-IN",
     )
@@ -199,82 +183,32 @@ async def screen_image(
         consent=consent,
     )
 
-    rules_result = _get_rules().evaluate(
-        inference=inference_output,
-        context=patient_ctx,
-        quality_passed=quality_passed,
-        ood_passed=ood_passed,
+    logger.info(
+        "Screen request: patient=%s eye=%s camera=%s size=%dx%d",
+        patient_pseudonym_id, eye_side, camera_type, w, h,
     )
 
-    # ── 6. Assemble rejection reasons ────────────────────────────────────
-    uncertainty_reasons = list(rules_result.uncertainty_reasons)
-    if not quality_passed:
-        uncertainty_reasons.insert(0, quality_result.human_readable_reason)
-    if not ood_passed and ood_result.failure_reason_en:
-        uncertainty_reasons.insert(0, ood_result.failure_reason_en)
-
-    # ── 7. Build ScreeningResult skeleton ────────────────────────────────
-    grade = inference_output.predicted_grade if inference_output else None
-    confidence = inference_output.confidence if inference_output else None
-
-    # Build bilingual reports
-    result_partial = ScreeningResult(
-        screening_id=screening_id,  # type: ignore[arg-type]
-        patient_pseudonym_id=patient_pseudonym_id,
-        eye_side=eye_side,
-        camera_type=camera_type,
-        grade=grade,
-        confidence=confidence,
-        referral=rules_result.referral,
-        urgency=rules_result.urgency,
-        follow_up_interval_months=rules_result.follow_up_interval_months,
-        is_uncertain=rules_result.is_uncertain,
-        uncertainty_reasons=uncertainty_reasons,
-        clinician_review_mandatory=True,
-        report_en="",
-        report_hi="",
-        image_sha256=image_sha256,
+    # ── Run LangGraph 5-Agent Pipeline ────────────────────────────────────
+    result = run_screening_pipeline(
+        image_bytes=raw_bytes,
+        image_metadata=image_metadata,
+        patient_context=patient_ctx,
+        language_requested=language,
+        image_rgb=img_rgb,
     )
 
-    report_en = ReportService.build_text_report(result_partial, lang="en")
-    report_hi = ReportService.build_text_report(result_partial, lang="hi")
-    result_partial.report_en = report_en
-    result_partial.report_hi = report_hi
-
-    # ── 8. Audit ledger ───────────────────────────────────────────────────
-    outcome_summary = (
-        f"GRADE={int(grade) if grade is not None else 'N/A'} "
-        f"REFERRAL={rules_result.referral} "
-        f"URGENCY={rules_result.urgency} "
-        f"QUALITY={'PASS' if quality_passed else 'FAIL'} "
-        f"OOD={'PASS' if ood_passed else 'FAIL'}"
-    )
-    audit_entry = _get_ledger().append(
-        event_type="SCREENING_COMPLETED",
-        screening_id=screening_id,
-        patient_pseudonym_id=patient_pseudonym_id,
-        image_sha256=image_sha256,
-        outcome_summary=outcome_summary,
-        extra={
-            "camera_type": str(camera_type),
-            "eye_side": str(eye_side),
-            "quality_passed": quality_passed,
-            "ood_passed": ood_passed,
-            "modifiers_applied": rules_result.applied_modifiers,
-        },
-    )
-
-    result_partial.previous_audit_hash = audit_entry.previous_hash
-    result_partial.audit_hash = audit_entry.entry_hash
-
-    # ── 9. Return ─────────────────────────────────────────────────────────
-    payload = ReportService.build_json_report(result_partial)
+    # ── Return backward-compatible JSON representation ───────────────────
+    payload = ReportService.build_json_report(result)
     payload["report_requested_lang"] = language
-    payload["report_text"] = report_hi if language == "hi" else report_en
+    payload["report_text"] = result.report_hi if language == "hi" else result.report_en
+    payload["voice_text"] = result.voice_text
+    payload["guideline_explanation"] = result.guideline_explanation
+    payload["guideline_citations"] = result.guideline_citations
+    payload["guideline_source_note"] = result.guideline_source_note
 
     logger.info(
-        "Screening completed: screening_id=%s grade=%s referral=%s quality=%s ood=%s",
-        screening_id, grade, rules_result.referral, quality_passed, ood_passed,
+        "Screening completed: screening_id=%s grade=%s referral=%s uncertain=%s",
+        result.screening_id, result.grade, result.referral, result.is_uncertain,
     )
     return JSONResponse(content=payload)
 
