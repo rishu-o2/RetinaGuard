@@ -37,6 +37,7 @@ training:
   # num_workers: train.py auto-caps to min(config_value, os.cpu_count(), 6)
   # i5-1335U has 12 logical cores; cap at 6 avoids thrashing the OS
   num_workers: 6
+  use_weighted_sampler: false             # Single imbalance strategy: class-weighted loss only (avoids double-weighting)
   mixed_precision: false                  # AMP is CUDA-only; train.py guards this already
   gradient_clip_val: 1.0
   early_stopping_patience: 4             # Tighter patience for shorter CPU runs

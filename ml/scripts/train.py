@@ -45,6 +45,37 @@ def set_seed(seed: int = 42) -> None:
     torch.backends.cudnn.benchmark = False
 
 
+def build_train_loader(
+    dataset: torch.utils.data.Dataset,
+    batch_size: int,
+    use_weighted_sampler: bool = False,
+    num_workers: int = 2,
+    pin_memory: bool = False,
+) -> DataLoader:
+    """Build DataLoader for training.
+
+    When use_weighted_sampler is True, uses WeightedRandomSampler based on dataset
+    label frequencies. When False (default), uses plain shuffled DataLoader
+    (RandomSampler) so that class-weighted loss is the sole imbalance correction.
+    """
+    if use_weighted_sampler and hasattr(dataset, "get_weighted_sampler"):
+        sampler = dataset.get_weighted_sampler()
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            sampler=sampler,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+        )
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
+
+
 def save_checkpoint(
     path: Path,
     epoch: int,
@@ -162,12 +193,12 @@ def train(
     max_w = 6 if device.type == "cuda" else 2
     num_workers = min(cfg_workers, os.cpu_count() or 1, max_w)
 
-    # Imbalance handling: Weighted sampler
-    sampler = train_dataset.get_weighted_sampler()
-    train_loader = DataLoader(
+    # Imbalance handling: optional WeightedRandomSampler (default False to avoid double-weighting)
+    use_weighted_sampler = cfg.get("training", {}).get("use_weighted_sampler", False)
+    train_loader = build_train_loader(
         train_dataset,
         batch_size=batch_size,
-        sampler=sampler,
+        use_weighted_sampler=use_weighted_sampler,
         num_workers=num_workers,
         pin_memory=(device.type == "cuda"),
     )
@@ -180,7 +211,8 @@ def train(
     )
 
     print(f"[Data] Train set size: {len(train_dataset)} | Val set size: {len(val_dataset)} | "
-          f"num_workers: {num_workers} | batch_size: {batch_size}")
+          f"num_workers: {num_workers} | batch_size: {batch_size} | "
+          f"use_weighted_sampler: {use_weighted_sampler}")
 
     # 2. Model & Loss
     m_cfg = cfg.get("model", {})

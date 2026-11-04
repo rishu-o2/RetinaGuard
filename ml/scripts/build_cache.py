@@ -83,13 +83,19 @@ def build_cache(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build cropped and resized fundus image cache.")
-    parser.add_argument("--raw-dir", default="data/raw/aptos/train_images", help="Path to raw images dir")
+    parser.add_argument("--raw-dir", default=None, help="Path to raw/source images dir (default: cache_512 if available and size < 512, else raw/aptos/train_images)")
     parser.add_argument("--size", type=int, default=512, help="Target square resolution (default: 512)")
     parser.add_argument("--out-dir", default=None, help="Output directory path (default: data/processed/cache_{size}/aptos)")
     parser.add_argument("--tol", type=int, default=15, help="Border crop threshold tolerance")
     args = parser.parse_args()
 
-    raw_dir = Path(args.raw_dir)
+    if args.raw_dir is not None:
+        raw_dir = Path(args.raw_dir)
+    elif Path("data/processed/cache_512/aptos").exists() and args.size < 512:
+        raw_dir = Path("data/processed/cache_512/aptos")
+    else:
+        raw_dir = Path("data/raw/aptos/train_images")
+
     if args.out_dir is None:
         out_dir = Path(f"data/processed/cache_{args.size}/aptos")
     else:

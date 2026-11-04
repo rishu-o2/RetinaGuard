@@ -186,3 +186,31 @@ def test_onnx_export_and_parity_check() -> None:
             assert "logits" in diffs
             assert "ordinal_logits" in diffs
             assert diffs["logits"] < 1e-3
+
+
+def test_dataloader_uses_plain_shuffled_sampler_when_weighted_sampler_false() -> None:
+    """Verify DataLoader uses a plain shuffled sampler (RandomSampler) when
+    use_weighted_sampler is False, and WeightedRandomSampler when True.
+    """
+    from torch.utils.data import RandomSampler, WeightedRandomSampler
+    from ml.scripts.train import build_train_loader
+
+    class MockDataset(SyntheticFundusDataset):
+        def get_weighted_sampler(self) -> WeightedRandomSampler:
+            weights = torch.ones(len(self))
+            return WeightedRandomSampler(weights, len(weights))
+
+    ds = MockDataset(num_samples=10, image_size=(64, 64))
+
+    # When False: must use plain RandomSampler (shuffled)
+    loader_plain = build_train_loader(ds, batch_size=2, use_weighted_sampler=False)
+    assert isinstance(loader_plain.sampler, RandomSampler), (
+        f"Expected RandomSampler when use_weighted_sampler=False, got {type(loader_plain.sampler)}"
+    )
+    assert not isinstance(loader_plain.sampler, WeightedRandomSampler)
+
+    # When True: must use WeightedRandomSampler
+    loader_weighted = build_train_loader(ds, batch_size=2, use_weighted_sampler=True)
+    assert isinstance(loader_weighted.sampler, WeightedRandomSampler), (
+        f"Expected WeightedRandomSampler when use_weighted_sampler=True, got {type(loader_weighted.sampler)}"
+    )

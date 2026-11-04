@@ -15,6 +15,7 @@ training:
   epochs: 25
   batch_size: 32
   num_workers: 4
+  use_weighted_sampler: false           # Class-weighted loss as only imbalance correction
   mixed_precision: true                 # torch.amp (AMP enabled)
   gradient_clip_val: 1.0                # Max gradient norm clipping
   early_stopping_patience: 6            # Early stopping patience based on validation QWK
