@@ -194,7 +194,7 @@ def evaluate_model(
     print(f"  Quadratic Weighted Kappa     : {metrics['qwk']:.4f} (95% CI: [{metrics['qwk_95_ci'][0]:.4f}, {metrics['qwk_95_ci'][1]:.4f}])")
     print(f"  Referable DR Sensitivity     : {metrics['sensitivity']:.4f} (95% CI: [{metrics['referable_sens_95_ci'][0]:.4f}, {metrics['referable_sens_95_ci'][1]:.4f}])")
     print(f"  Referable DR Specificity     : {metrics['specificity']:.4f}")
-    print(f"  Referable DR AUC             : {metrics.get('referable_dr_auc', 0.0):.4f}")
+    print(f"  Referable DR AUC             : {metrics['referable_dr_auc']:.4f}")
     print(f"\n  Per-Class Recall:")
     for g in range(5):
         print(f"    Grade {g} ({class_names[g]:<10}): {metrics['per_class_recall'].get(g, 0.0):.4f}")

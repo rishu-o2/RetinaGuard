@@ -209,3 +209,4 @@ def test_wrong_keys_do_not_exist_in_output() -> None:
             f"Old wrong key '{key}' was found in evaluate_cohort() output. "
             f"Rename it back to the correct key and update train.py accordingly."
         )
+

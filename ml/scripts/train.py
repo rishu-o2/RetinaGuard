@@ -13,6 +13,7 @@ Features:
 
 import argparse
 import csv
+import os
 import random
 import sys
 import time
@@ -137,21 +138,29 @@ def train(
     print(f"{'='*65}\n")
 
     # 1. Datasets and Loaders
+    image_size = cfg.get("model", {}).get("image_size", None)
     train_dataset = APTOSDataset(
         manifest_path=splits_path,
         cache_dir=cache_dir,
         split="train",
         augment=True,
+        image_size=image_size,
     )
     val_dataset = APTOSDataset(
         manifest_path=splits_path,
         cache_dir=cache_dir,
         split="val",
         augment=False,
+        image_size=image_size,
     )
 
     batch_size = cfg.get("training", {}).get("batch_size", 32)
-    num_workers = cfg.get("training", {}).get("num_workers", 2)
+    # Cap num_workers: respect config but never exceed os.cpu_count().
+    # On CPU, cap at 2 to prevent Windows multiprocessing RAM exhaustion;
+    # on CUDA, cap at 6.
+    cfg_workers = cfg.get("training", {}).get("num_workers", 2)
+    max_w = 6 if device.type == "cuda" else 2
+    num_workers = min(cfg_workers, os.cpu_count() or 1, max_w)
 
     # Imbalance handling: Weighted sampler
     sampler = train_dataset.get_weighted_sampler()
@@ -170,7 +179,8 @@ def train(
         pin_memory=(device.type == "cuda"),
     )
 
-    print(f"[Data] Train set size: {len(train_dataset)} | Val set size: {len(val_dataset)}")
+    print(f"[Data] Train set size: {len(train_dataset)} | Val set size: {len(val_dataset)} | "
+          f"num_workers: {num_workers} | batch_size: {batch_size}")
 
     # 2. Model & Loss
     m_cfg = cfg.get("model", {})
@@ -208,7 +218,11 @@ def train(
     )
 
     mixed_precision = cfg.get("training", {}).get("mixed_precision", True) and (device.type == "cuda")
-    scaler = torch.amp.GradScaler("cuda", enabled=mixed_precision)
+    # GradScaler must receive the actual device type; passing "cuda" on a CPU
+    # machine raises a RuntimeError.  When mixed_precision is False the scaler
+    # is disabled and its device string is never used, but we still pass the
+    # correct type for correctness.
+    scaler = torch.amp.GradScaler(device.type, enabled=mixed_precision)
     grad_clip_val = cfg.get("training", {}).get("gradient_clip_val", 1.0)
     patience = cfg.get("training", {}).get("early_stopping_patience", 6)
 
@@ -320,9 +334,7 @@ def train(
         val_qwk  = eval_metrics["qwk"]
         ref_sens = eval_metrics["sensitivity"]
         ref_spec = eval_metrics["specificity"]
-        # referable_dr_auc is only present when y_probs was supplied; fall back
-        # to 0.0 only in the (impossible during training) case it is absent.
-        auc      = eval_metrics.get("referable_dr_auc", 0.0)
+        auc      = eval_metrics["referable_dr_auc"]
 
         ep_duration = time.time() - ep_t0
 
@@ -350,6 +362,18 @@ def train(
             f"Ref Sens: {ref_sens:.3f} | Ref Spec: {ref_spec:.3f} | "
             f"LR: {curr_lr:.6f}"
         )
+
+        # After epoch 1, print an estimated total wall-clock time.
+        # This helps CPU users decide whether to continue or adjust batch size.
+        if epoch == start_epoch:
+            remaining_epochs = total_epochs - epoch
+            est_remaining_s = ep_duration * remaining_epochs
+            est_total_s = ep_duration * total_epochs
+            print(
+                f"  [ETA] 1 epoch = {ep_duration:.0f}s | "
+                f"Est. total ({total_epochs} epochs) ~ {est_total_s/60:.0f} min | "
+                f"Est. remaining ~ {est_remaining_s/60:.0f} min"
+            )
 
         # Checkpointing
         save_checkpoint(

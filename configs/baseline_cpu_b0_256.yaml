@@ -1,0 +1,67 @@
+# ==============================================================================
+# RetinaGuard - CPU Training Configuration (Intel i5 / no GPU)
+# Model: EfficientNet-B0 Dual-Head, 256x256 input
+# ------------------------------------------------------------------------------
+# Use with:
+#   python ml/scripts/train.py \
+#     --config configs/baseline_cpu_b0_256.yaml \
+#     --cache-dir data/processed/cache_512/aptos \
+#     --splits data/processed/splits_v2.csv \
+#     --out-dir ml/runs/cpu_run
+#
+# Images are stored in cache_512 (512x512 PNG). APTOSDataset resizes to 256x256
+# at load time if image_size is specified.
+#
+# TO BUILD A 256 CACHE (faster epochs — crop+resize done once):
+#   python ml/scripts/build_cache.py \
+#     --raw-dir data/raw/aptos/train_images \
+#     --size 256 \
+#     --out-dir data/processed/cache_256/aptos
+#   Then set --cache-dir data/processed/cache_256/aptos
+#
+# mixed_precision MUST be false on CPU — torch.amp.GradScaler is a no-op for
+# CPU (device_type="cpu") but autocast on CPU can be slower; we disable both.
+# ==============================================================================
+
+model:
+  backbone: "efficientnet_b0"             # timm / torchvision identifier
+  num_classes: 5                          # ICDR grades 0-4
+  pretrained: true                        # ImageNet initialization
+  dropout_rate: 0.30
+  image_size: [256, 256]                  # 256x256 — fits i5 RAM, reasonable throughput
+
+training:
+  seed: 42
+  epochs: 12
+  batch_size: 16                          # 16 fits ~4 GB working memory on 16 GB system
+  # num_workers: train.py auto-caps to min(config_value, os.cpu_count(), 6)
+  # i5-1335U has 12 logical cores; cap at 6 avoids thrashing the OS
+  num_workers: 6
+  mixed_precision: false                  # AMP is CUDA-only; train.py guards this already
+  gradient_clip_val: 1.0
+  early_stopping_patience: 4             # Tighter patience for shorter CPU runs
+  save_dir: "models/checkpoints"
+
+optimizer:
+  name: "AdamW"
+  learning_rate: 0.0003
+  weight_decay: 0.01
+
+scheduler:
+  name: "CosineAnnealingLR"
+  T_max: 12                               # Must match epochs
+  eta_min: 0.000005
+
+loss:
+  categorical_loss: "cross_entropy"       # "cross_entropy" or "focal"
+  class_weighting: "effective_samples"    # Same as baseline_b0_384.yaml
+  beta: 0.999
+  ordinal_loss_weight: 0.50
+  focal_gamma: 2.0
+
+logging:
+  logger_type: "file"
+  log_dir: "logs/training"
+  project_name: "retinaguard-dr-training"
+  experiment_name: "baseline_cpu_b0_256"
+
