@@ -39,15 +39,39 @@ class LongStandingDiabetesModifier(BaseModel):
     upgrade_urgency_if_grade_ge: int
 
 
+class SightThreateningEscalationModifier(BaseModel):
+    enabled: bool = True
+    threshold_soon: float = Field(default=0.05, ge=0.0, le=1.0)
+    target_urgency_soon: Urgency = Urgency.SOON
+    max_interval_months_soon: int = 3
+    threshold_urgent: float = Field(default=0.30, ge=0.0, le=1.0)
+    target_urgency_urgent: Urgency = Urgency.URGENT
+    max_interval_months_urgent: int = 1
+    probability_threshold: Optional[float] = None
+    target_urgency: Optional[Urgency] = None
+    max_interval_months: Optional[int] = None
+    notes: Optional[str] = None
+
+
 class ModifiersConfig(BaseModel):
     pregnancy: PregnancyModifier
     high_risk_glycemic_control: HighRiskGlycemicModifier
     long_standing_diabetes: LongStandingDiabetesModifier
+    sight_threatening_escalation: Optional[SightThreateningEscalationModifier] = None
+
+
+class ReferableBandAbstentionConfig(BaseModel):
+    enabled: bool = True
+    referral_cutoff: float = Field(default=0.50, ge=0.0, le=1.0)
+    lower_threshold: float = Field(default=0.30, ge=0.0, le=1.0)
+    upper_threshold: float = Field(default=0.70, ge=0.0, le=1.0)
+    notes: Optional[str] = None
 
 
 class ConfidenceThresholdsConfig(BaseModel):
     min_acceptable_confidence: float = Field(..., ge=0.0, le=1.0)
     low_confidence_action: str
+    referable_band: Optional[ReferableBandAbstentionConfig] = None
 
 
 class ClinicalRulesConfig(BaseModel):

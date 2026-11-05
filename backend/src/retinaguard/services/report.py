@@ -57,6 +57,7 @@ _REFERRAL_TEXT_HI: dict[ReferralDecision, str] = {
 
 _URGENCY_TEXT_EN: dict[Urgency, str] = {
     Urgency.ROUTINE: "Routine follow-up.",
+    Urgency.SOON: "Soon — schedule within 1-3 months.",
     Urgency.PRIORITY: "Priority review — schedule within 2 weeks.",
     Urgency.URGENT: "Urgent — schedule within 48 hours.",
     Urgency.EMERGENCY: "Emergency — refer immediately to ophthalmology.",
@@ -64,6 +65,7 @@ _URGENCY_TEXT_EN: dict[Urgency, str] = {
 
 _URGENCY_TEXT_HI: dict[Urgency, str] = {
     Urgency.ROUTINE: "नियमित अनुवर्ती (फ़ॉलो-अप)।",
+    Urgency.SOON: "शीघ्र — 1-3 महीने के भीतर निर्धारित करें।",
     Urgency.PRIORITY: "प्राथमिकता समीक्षा — 2 सप्ताह के भीतर निर्धारित करें।",
     Urgency.URGENT: "अत्यावश्यक — 48 घंटे के भीतर निर्धारित करें।",
     Urgency.EMERGENCY: "आपातकाल — तुरंत नेत्र रोग विशेषज्ञ को रेफर करें।",
@@ -115,6 +117,7 @@ class ReportService:
             lines = [
                 "=" * 60,
                 "  RetinaGuard Diabetic Retinopathy Screening Report",
+                "  *** PROTOTYPE ONLY - NOT CLINICALLY VALIDATED ***",
                 "=" * 60,
                 f"Screening ID     : {result.screening_id}",
                 f"Date / Time (UTC): {result.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
@@ -144,6 +147,7 @@ class ReportService:
             lines = [
                 "=" * 60,
                 "  RetinaGuard मधुमेह रेटिनोपैथी जांच रिपोर्ट",
+                "  *** प्रोटोटाइप - चिकित्सकीय रूप से प्रमाणित नहीं ***",
                 "=" * 60,
                 f"स्क्रीनिंग ID    : {result.screening_id}",
                 f"दिनांक/समय (UTC) : {result.created_at.strftime('%Y-%m-%d %H:%M:%S')}",

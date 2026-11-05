@@ -1,14 +1,3 @@
-# ==============================================================================
-# RetinaGuard - Clinical Decision Rules Configuration
-# Standard: ICDR (International Clinical Diabetic Retinopathy Scale 0-4)
-# Primary Guidelines:
-#   - AIOS: All India Ophthalmological Society Clinical Practice Guidelines (2020)
-#   - RSSDI: Research Society for the Study of Diabetes in India Clinical Recommendations (2022)
-#   - ICMR: Indian Council of Medical Research Type 2 Diabetes Guidelines (2018)
-#   - ICO: International Council of Ophthalmology Guidelines for Diabetic Eye Care (2017)
-#
-# NOTE: ALL THRESHOLDS AND INTERVALS REQUIRE EXPLICIT CLINICAL COMMITTEE SIGN-OFF.
-# ==============================================================================
 
 metadata:
   version: "1.0.0"
@@ -16,11 +5,6 @@ metadata:
   governing_bodies: ["AIOS", "RSSDI", "ICMR", "ICO"]
   last_updated: "2026-11-02"
 
-# ------------------------------------------------------------------------------
-# Referral Classification by ICDR Grade
-# Rule: Any grade >= 2 (Moderate NPDR or worse) is referable to an ophthalmologist.
-# Source: AIOS & RSSDI Joint Guidelines 2020 / ICO 2017 Table 2.
-# ------------------------------------------------------------------------------
 icdr_grades:
   0:
     name: "No Apparent DR"
@@ -78,6 +62,16 @@ modifiers:
     max_interval_months: 6            # Source: RSSDI 2022 # NEEDS CLINICAL REVIEW
     upgrade_urgency_if_grade_ge: 2    # Upgrade to URGENT if moderate DR # NEEDS CLINICAL REVIEW
 
+  sight_threatening_escalation:
+    enabled: true
+    threshold_soon: 0.05              # Lower threshold: gives at least SOON # NEEDS CLINICAL REVIEW
+    target_urgency_soon: "SOON"       # Source: Clinical consensus # NEEDS CLINICAL REVIEW
+    max_interval_months_soon: 3       # Within 3 months for SOON tier # NEEDS CLINICAL REVIEW
+    threshold_urgent: 0.30            # Higher threshold: gives at least URGENT # NEEDS CLINICAL REVIEW
+    target_urgency_urgent: "URGENT"   # Source: Clinical consensus # NEEDS CLINICAL REVIEW
+    max_interval_months_urgent: 1     # Within 1 month for URGENT tier # NEEDS CLINICAL REVIEW
+    notes: "Tiered escalation: P(grade>=3) >= threshold_soon escalates to at least SOON; P(grade>=3) >= threshold_urgent escalates to at least URGENT."
+
 # ------------------------------------------------------------------------------
 # Confidence Threshold for Autonomous Decision-Support Pass
 # If ML confidence is below this value, rules engine MUST return UNCERTAIN.
@@ -85,4 +79,10 @@ modifiers:
 confidence_thresholds:
   min_acceptable_confidence: 0.70     # Source: Clinical consensus recommendation # NEEDS CLINICAL REVIEW
   low_confidence_action: "UNCERTAIN_REFER_FOR_CLINICIAN_REVIEW"
+  referable_band:
+    enabled: true
+    referral_cutoff: 0.50             # Center cutoff for referable decision # NEEDS CLINICAL REVIEW
+    lower_threshold: 0.30             # Lower edge of uncertainty band # NEEDS CLINICAL REVIEW
+    upper_threshold: 0.70             # Upper edge of uncertainty band # NEEDS CLINICAL REVIEW
+    notes: "P(referable) in [0.30, 0.70] triggers UNCERTAIN. Never returns confident No DR if P(referable) >= 0.30."
 

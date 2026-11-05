@@ -1,0 +1,24 @@
+version: "2.0.0"
+note: "NEEDS CLINICAL REVIEW before deployment"
+policy:
+  default: "referable_band_abstention"
+  description: >
+    When calibrated P(referable) = P(grade>=2) falls within [lower_edge, upper_edge],
+    return UNCERTAIN. Never return a confident 'no DR' when P(referable) >= lower_edge.
+referable_band:
+  cutoff: 0.50                      # Referral classification threshold # NEEDS CLINICAL REVIEW
+  lower_edge: 0.30                  # Lower boundary of uncertainty band # NEEDS CLINICAL REVIEW
+  upper_edge: 0.70                  # Upper boundary of uncertainty band # NEEDS CLINICAL REVIEW
+  val_uncertain_rate: 0.0733        # Measured on VAL: 41/559 (7.3%)
+  val_automated_rate: 0.9267        # Measured on VAL: 518/559 (92.7%)
+  val_referable_automated_rate: 0.9103  # Measured on VAL: 203/223 (91.0%)
+  val_retained_referable_sensitivity: 0.9754  # Measured on VAL: 198/203 (97.5%)
+  val_retained_referable_specificity: 0.9683  # Measured on VAL: 305/315 (96.8%)
+  note: "NEEDS CLINICAL REVIEW"
+legacy_thresholds:
+  high_confidence:
+    value: 0.5024
+    coverage_at_val: 0.8998
+    accuracy_at_val: 0.8728
+    referable_sensitivity_at_val: 0.9371
+    note: "NEEDS CLINICAL REVIEW"

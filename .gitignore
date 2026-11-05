@@ -44,3 +44,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# Evaluation outputs (large files, predictions CSVs, PNGs)
+/ml/evaluation/
+/models/
+
+# NPZ statistics files
+*.npz
+

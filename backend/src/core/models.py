@@ -34,6 +34,7 @@ class ReferralDecision(str, Enum):
 class Urgency(str, Enum):
     """Clinical urgency tiers mapped according to AIOS/RSSDI guidelines."""
     ROUTINE = "ROUTINE"
+    SOON = "SOON"
     PRIORITY = "PRIORITY"
     URGENT = "URGENT"
     EMERGENCY = "EMERGENCY"
