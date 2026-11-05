@@ -52,7 +52,7 @@ class DiabetesType(str, Enum):
 
 
 class PatientContext(BaseModel):
-    "
+    """Patient clinical context for DR triage rule refinement."""
     patient_pseudonym_id: str = Field(
         ...,
         description="Pseudonymized or anonymized internal ID (never raw Aadhaar, phone, or name)",

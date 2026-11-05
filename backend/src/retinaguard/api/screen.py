@@ -206,6 +206,27 @@ async def screen_image(
     payload["guideline_citations"] = result.guideline_citations
     payload["guideline_source_note"] = result.guideline_source_note
 
+    # ── Persist to Screening Database (as pending review) ─────────────────
+    try:
+        import json as _json
+        from retinaguard.db.models import Screening, ScreeningStatus
+        from retinaguard.db.session import get_sessionmaker
+
+        session_factory = get_sessionmaker()
+        async with session_factory() as db:
+            screening_record = Screening(
+                id=str(result.screening_id),
+                pseudonym_id=hashlib.sha256(patient_pseudonym_id.encode()).hexdigest(),
+                result_json=_json.dumps(payload),
+                model_version=str(getattr(result, "model_version", "v1.0.0")),
+                audit_hash=str(result.audit_hash or ""),
+                status=ScreeningStatus.PENDING_REVIEW,
+            )
+            db.add(screening_record)
+            await db.commit()
+    except Exception as exc:
+        logger.warning("Could not persist screening record to database: %s", exc)
+
     logger.info(
         "Screening completed: screening_id=%s grade=%s referral=%s uncertain=%s",
         result.screening_id, result.grade, result.referral, result.is_uncertain,

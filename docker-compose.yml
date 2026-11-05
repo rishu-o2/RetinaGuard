@@ -1,43 +1,69 @@
-version: "3.8"
+version: "3.9"
 
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-retinaguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-retinaguard}
+      POSTGRES_DB: ${POSTGRES_DB:-retinaguard_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-retinaguard} -d ${POSTGRES_DB:-retinaguard_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RETINAGUARD_ENV: ${RETINAGUARD_ENV:-production}
+      RETINAGUARD_PORT: 8000
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-retinaguard}:${POSTGRES_PASSWORD:-retinaguard}@db:5432/${POSTGRES_DB:-retinaguard_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SARVAM_API_KEY: ${SARVAM_API_KEY:-}
     ports:
       - "8000:8000"
-    environment:
-      - RETINAGUARD_ENV=development
-      - RETINAGUARD_PORT=8000
-      - RETINAGUARD_PHI_ENCRYPTION_KEY=${RETINAGUARD_PHI_ENCRYPTION_KEY}
-      - DATABASE_URL=postgresql://retinaguard:retinaguard@db:5432/retinaguard_db
     volumes:
       - ./configs:/app/configs:ro
-      - ./backend:/app/backend
+      - ./models:/app/models:ro
+      - ./ml/exports:/app/ml/exports:ro
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
-      - backend
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=retinaguard
-      - POSTGRES_PASSWORD=retinaguard
-      - POSTGRES_DB=retinaguard_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   pgdata:
-

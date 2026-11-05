@@ -1,15 +1,3 @@
-"""Tests for the RetinaGuard 5-Agent pipeline and LangGraph screening workflow.
-
-Covers:
-1. VisionAgent (quality gate, OOD check, inference, and early-exit flags)
-2. SafetyAgent (deterministic rules engine delegation, modifier handling)
-3. GuidelineAgent & GuidelineValidator (authentic retrieval, adversarial text rejection, empty dir fallback)
-4. AuditAgent (zero-PHI, tamper-evident hash chaining)
-5. VoiceAgent (English & Hindi speech narratives, distinct UNCERTAIN warning, zero-PHI)
-6. Graph early exit (skips guideline agent on uncertainty, still logs to audit & generates voice warning)
-7. End-to-end POST /api/v1/screen test with sample image
-"""
-
 from __future__ import annotations
 
 import io

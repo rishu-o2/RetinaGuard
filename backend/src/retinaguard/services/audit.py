@@ -298,3 +298,35 @@ class AuditLedger:
                 pass
         return entries
 
+    def append_review(
+        self,
+        *,
+        screening_id: str,
+        clinician_id: str,
+        decision: str,
+        final_grade: Optional[int] = None,
+        note: Optional[str] = None,
+    ) -> AuditEntry:
+        """Append a clinician review event to the audit ledger.
+
+        Note text itself is NEVER stored directly in the audit record (to avoid
+        storing incidental PHI), only its SHA-256 hash.
+        """
+        note_hash = hashlib.sha256((note or "").encode()).hexdigest() if note else ""
+        outcome_summary = f"DECISION={decision} FINAL_GRADE={final_grade}"
+        extra = {
+            "clinician_id": clinician_id,
+            "decision": decision,
+            "final_grade": final_grade,
+            "note_hash": note_hash,
+        }
+        return self.append(
+            event_type="CLINICIAN_REVIEW",
+            screening_id=screening_id,
+            patient_pseudonym_id="",
+            image_sha256="",
+            outcome_summary=outcome_summary,
+            extra=extra,
+        )
+
+

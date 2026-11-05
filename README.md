@@ -68,21 +68,49 @@ RetinaGuard/
 
 ---
 
-## 🚀 Quickstart & Local Setup
+## 🚀 Quickstart & Deployment
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 20+
-- Docker & Docker Compose (optional, for full containerized stack)
+- Docker ≥ 24 and Docker Compose v2 (recommended) OR Python 3.11+ & Node.js 20+
+- Model weights: `ml/exports/retinaguard_dr_v1.onnx` and `models/ood_stats_v1.npz` (downloaded or trained; registry metadata is tracked)
 
-### 1. Environment Configuration
+### 1. Docker Compose (Full Stack)
+
 ```bash
+# 1. Copy environment template and configure secrets
 cp .env.example .env
+
+# 2. Launch PostgreSQL, Backend API, and Frontend SPA
+docker compose up --build
 ```
 
-### 2. Backend Setup & Run
+- **Frontend (Clinician UI & Screening)**: [http://localhost:3000](http://localhost:3000)
+- **Backend API & OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Initial Admin**: Created automatically on first startup from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`.
+
+### 2. Local Development (Without Docker)
+
 ```bash
-# Install backend dependencies
+# Backend
+pip install -e "./backend[dev]"
+export DATABASE_URL="sqlite+aiosqlite:///./retinaguard.db"
+export JWT_SECRET_KEY="dev-secret-key-at-least-32-chars-long"
+export ADMIN_EMAIL="admin@hospital.in"
+export ADMIN_PASSWORD="AdminPassword123!"
+uvicorn retinaguard.api.main:app --reload --port 8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+### 3. Review Queue & Roles
+- **Screeners**: Access the streamlined image intake form and instant AI triage.
+- **Clinicians / Admins**: Access the dedicated **Review Queue**, view pending cases, and **Confirm** or **Override** with a clinical note.
+- **Reports**: Generate and download bilingual server-side PDF referral reports (`/screenings/{id}/report.pdf?lang=en|hi`).
+- **Voice**: Spoken clinical advice in Hindi or English via Sarvam AI API or native browser speech synthesis fallback.
 pip install -e backend
 
 # Start the FastAPI server (runs on http://localhost:8000)

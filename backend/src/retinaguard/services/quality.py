@@ -143,8 +143,23 @@ class QualityGateService:
         # Step 1: Detect circular FOV mask
         mask, fov_area_ratio, fov_circularity = self.segment_fundus_fov(img_rgb)
 
-        # Step 2: Compute metrics inside mask
-        blur_var = self.calculate_blur_variance(img_gray, mask)
+        # Step 2: Compute sharpness on a fixed 512px version of the cropped retina
+        # to ensure blur variance is independent of input sensor resolution.
+        y_idx, x_idx = np.where(mask == 1)
+        if len(y_idx) > 0 and len(x_idx) > 0:
+            ymin, ymax = int(np.min(y_idx)), int(np.max(y_idx))
+            xmin, xmax = int(np.min(x_idx)), int(np.max(x_idx))
+            cropped_g = img_gray[ymin:ymax + 1, xmin:xmax + 1]
+            cropped_m = mask[ymin:ymax + 1, xmin:xmax + 1]
+        else:
+            cropped_g = img_gray
+            cropped_m = mask
+
+        res_g = cv2.resize(cropped_g, (512, 512), interpolation=cv2.INTER_AREA)
+        res_m = cv2.resize(cropped_m, (512, 512), interpolation=cv2.INTER_NEAREST)
+        blur_var = self.calculate_blur_variance(res_g, res_m)
+
+        # Compute exposure metrics inside original mask
         mean_lum, p5_lum, p95_lum, under_ratio, over_ratio = self.calculate_exposure_and_luminance(
             img_gray, mask
         )

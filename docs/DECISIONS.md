@@ -136,7 +136,7 @@ This document records all significant architectural, clinical-safety, and regula
 * **Date**: 2026-11-02
 * **Status**: Accepted
 * **Context**: During development and testing, the trained ONNX model file does not yet exist. The API must remain fully functional and return safe `UNCERTAIN` outcomes rather than crashing.
-* **Decision**: `ONNXInferenceService` lazily loads the ONNX Runtime session on the first `predict()` call and returns `None` (triggering the rules engine's `UNCERTAIN` pathway) if the model file is absent or `onnxruntime` is not installed.
+* **Decision**: `ONNXInferenceService` lazily loads the ONNX Runtime session on the first `predict()` call and returns `None` (triggering the rules engine's `UNCERTAIN` pathway) if the model file is absent or `onnxruntime` is not installed. 
 * **Consequences**: The `/screen` endpoint is testable and deployable without a trained model. Staging environments can run with a mock or placeholder model. The ONNX session is cached in a module-level singleton (loaded once per process).
 
 

@@ -30,6 +30,11 @@ jobs:
   backend-tests:
     name: Backend Test Suite
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET_KEY: test-ci-secret-key-do-not-use-in-production
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: test-admin-password
+      DATABASE_URL: sqlite+aiosqlite:///./test.db
     steps:
       - uses: actions/checkout@v4
 
@@ -78,5 +83,30 @@ jobs:
           node-version: "20"
 
       - name: Run Node Tests
-        run: node --test frontend/tests/*.test.js
+        run: cd frontend && node --test tests/*.test.js
 
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run pip-audit check
+        run: |
+          pip install pip-audit
+          pip-audit --desc || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Audit npm dependencies
+        run: |
+          cd frontend
+          npm audit --audit-level=high || true

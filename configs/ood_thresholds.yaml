@@ -30,7 +30,7 @@ deep_ood_metrics:
   mahalanobis_distance:
     enabled: true
     max_distance_threshold: 45.0       # Features farther than 45 units from class centroids are OOD # NEEDS CLINICAL REVIEW
-    statistics_file: "configs/ood_statistics.npz"
+    statistics_file: "models/ood_stats_v1.npz"
 
 failure_messages:
   OPTICAL_SPECTRUM_INVALID:

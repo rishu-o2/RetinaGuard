@@ -1,21 +1,40 @@
 FROM python:3.11-slim
 
+# Create dedicated non-root user
+RUN groupadd -r retinaguard && useradd -r -g retinaguard -u 1000 retinaguard
+
 WORKDIR /app
 
+# System dependencies for OpenCV, font rendering, and healthchecks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
     libglib2.0-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install python dependencies
 COPY pyproject.toml .
 COPY backend/pyproject.toml backend/
-COPY backend/src backend/src
-COPY configs configs
-
 RUN pip install --no-cache-dir ./backend
+
+# Copy application source & configurations
+COPY backend/src backend/src
+COPY backend/alembic.ini backend/
+COPY backend/alembic backend/alembic
+COPY configs configs
+COPY models/registry.json models/registry.json
+
+ENV PYTHONPATH=/app/backend/src \
+    PYTHONUNBUFFERED=1
+
+RUN chown -R retinaguard:retinaguard /app
+
+USER retinaguard
 
 EXPOSE 8000
 
-CMD ["uvicorn", "retinaguard.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
+CMD ["uvicorn", "retinaguard.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

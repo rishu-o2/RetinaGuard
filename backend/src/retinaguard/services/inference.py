@@ -74,15 +74,62 @@ class ONNXInferenceService:
 
     def __init__(self, model_path: Optional[Path | str] = None) -> None:
         if model_path is None:
-            model_path = _find_repo_root() / "ml" / "exports" / "retinaguard_dr.onnx"
+            model_path = self._resolve_model_path()
         self.model_path = Path(model_path)
         self._session = None  # lazy-loaded
+        self.temperature = 1.0
+        self.image_size = _DEFAULT_SIZE
+        self._load_registry_metadata()
 
         if not self.model_path.exists():
             logger.warning(
                 "ONNX model not found at %s. Inference will return UNCERTAIN until the model is exported.",
                 self.model_path,
             )
+
+    def _load_registry_metadata(self) -> None:
+        """Load temperature and image size from registry if available."""
+        registry_path = _find_repo_root() / "models" / "registry.json"
+        if registry_path.exists():
+            try:
+                import json
+                with open(registry_path, encoding="utf-8") as f:
+                    reg = json.load(f)
+                entries = reg.get("models", [])
+                if entries:
+                    entry = entries[0]
+                    self.temperature = float(entry.get("temperature", 1.0))
+                    sz = entry.get("image_size", _DEFAULT_SIZE)
+                    if isinstance(sz, (list, tuple)) and len(sz) > 0:
+                        self.image_size = int(sz[0])
+                    elif isinstance(sz, int):
+                        self.image_size = sz
+                    logger.info("Loaded registry metadata: T=%.4f, size=%d", self.temperature, self.image_size)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not read registry metadata: %s", exc)
+
+    @staticmethod
+    def _resolve_model_path() -> Path:
+        """Resolve ONNX model path: prefer models/registry.json entry, else legacy path."""
+        repo_root = _find_repo_root()
+        registry_path = repo_root / "models" / "registry.json"
+        if registry_path.exists():
+            try:
+                import json
+                with open(registry_path, encoding="utf-8") as f:
+                    reg = json.load(f)
+                entries = reg.get("models", [])
+                if entries:
+                    onnx_rel = entries[0].get("onnx_path", "")
+                    if onnx_rel and onnx_rel != "SKIPPED":
+                        candidate = repo_root / onnx_rel
+                        if candidate.exists():
+                            logger.info("Using ONNX model from registry: %s", candidate)
+                            return candidate
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not read models/registry.json: %s", exc)
+        # Legacy fallback
+        return repo_root / "ml" / "exports" / "retinaguard_dr.onnx"
 
     def _load_session(self):
         """Lazy-load the ONNX Runtime InferenceSession."""
@@ -101,7 +148,13 @@ class ONNXInferenceService:
             sess_options=opts,
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
-        logger.info("ONNX model loaded from %s", self.model_path)
+        try:
+            shape = self._session.get_inputs()[0].shape
+            if len(shape) >= 4 and isinstance(shape[2], int) and shape[2] > 0:
+                self.image_size = shape[2]
+        except Exception:
+            pass
+        logger.info("ONNX model loaded from %s (input size: %d)", self.model_path, self.image_size)
         return self._session
 
     @property
@@ -129,17 +182,24 @@ class ONNXInferenceService:
             logger.error("Failed to load ONNX session: %s", exc)
             return None
 
-        input_tensor = preprocess_image_for_inference(img_rgb)
+        input_tensor = preprocess_image_for_inference(img_rgb, size=self.image_size)
         input_name = session.get_inputs()[0].name
         outputs = session.run(None, {input_name: input_tensor})
 
         # Model outputs: [logits_categorical (1,5), logits_ordinal (1,4)]
-        # Use categorical logits for softmax-based confidence.
-        cat_logits = outputs[0][0]  # shape (5,)
+        # Use temperature scaling on categorical logits
+        cat_logits = outputs[0][0] / max(self.temperature, 1e-4)
         exp_l = np.exp(cat_logits - np.max(cat_logits))
         probs = exp_l / exp_l.sum()
 
-        predicted_idx = int(np.argmax(probs))
+        # Grade prediction: use ordinal sum if available, else argmax
+        if len(outputs) > 1 and outputs[1].shape[-1] == 4:
+            ord_logits = outputs[1][0]
+            ord_probs = 1.0 / (1.0 + np.exp(-ord_logits))
+            predicted_idx = int(np.clip(np.round(np.sum(ord_probs)), 0, 4))
+        else:
+            predicted_idx = int(np.argmax(probs))
+
         confidence = float(probs[predicted_idx])
 
         return InferenceOutput(

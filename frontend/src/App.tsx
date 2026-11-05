@@ -1,4 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
+import { LoginPage } from "./LoginPage";
+import { ReviewList } from "./ReviewList";
+import { ReviewDetail } from "./ReviewDetail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,7 +54,14 @@ function UncertainCard({
   language: Language;
 }) {
   return (
-    <div className="rounded-lg border-2 border-orange-400 bg-orange-50 p-5 space-y-3">
+    <div className="rounded-lg border-2 border-orange-400 bg-orange-50 p-5 space-y-3" id="result-printable">
+      {/* Prototype Warning Banner */}
+      <div className="rounded border-2 border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase print:border-amber-600 print:text-amber-950">
+        {language === "hi"
+          ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
+          : "⚠️ Prototype, not clinically validated"}
+      </div>
+
       <div className="flex items-center space-x-3">
         <span className="text-3xl">⚠️</span>
         <div>
@@ -106,6 +116,13 @@ function ResultCard({
 
   return (
     <div className="space-y-4 print:space-y-3" id="result-printable">
+      {/* Prototype Warning Banner */}
+      <div className="rounded border-2 border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase print:border-amber-600 print:text-amber-950">
+        {language === "hi"
+          ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
+          : "⚠️ Prototype, not clinically validated"}
+      </div>
+
       {/* Grade + Referral row */}
       <div className="flex flex-wrap items-center gap-3">
         {result.grade !== null && (
@@ -207,6 +224,18 @@ function ResultCard({
           <span>🖨️</span>
           <span>{language === "hi" ? "प्रिंट / PDF" : "Print / PDF"}</span>
         </button>
+
+        {/* Server-side Referral Report PDF */}
+        {result.screening_id && (
+          <button
+            onClick={() => window.open(`/screenings/${result.screening_id}/report.pdf?lang=${language}`, "_blank")}
+            aria-label="Download PDF report"
+            className="flex items-center space-x-2 px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition"
+          >
+            <span>📄</span>
+            <span>{language === "hi" ? "PDF डाउनलोड करें" : "Download PDF"}</span>
+          </button>
+        )}
       </div>
 
       <p className="text-xs text-slate-400">
@@ -219,6 +248,16 @@ function ResultCard({
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export function App() {
+  // Auth & role state
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("retinaguard_token"));
+  const [role, setRole] = useState<string | null>(() => localStorage.getItem("retinaguard_role"));
+  const [userEmail, setUserEmail] = useState<string | null>(() => localStorage.getItem("retinaguard_email"));
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"screen" | "queue">(() => {
+    const r = localStorage.getItem("retinaguard_role");
+    return r === "clinician" || r === "admin" ? "queue" : "screen";
+  });
+
   // Form state
   const [cameraType, setCameraType] = useState<CameraType>("SMARTPHONE_PORTABLE");
   const [language, setLanguage] = useState<Language>("en");
@@ -319,10 +358,27 @@ export function App() {
     }
   };
 
-  // ── Audio — Web Speech API (voice_text) ──────────────────────────────────
+  // ── Audio — Real Voice (/voice) with Web Speech API Fallback ────────────
 
-  const handlePlayAudio = useCallback(() => {
+  const handlePlayAudio = useCallback(async () => {
     if (!result?.voice_text) return;
+    try {
+      const res = await fetch("/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: result.voice_text, language }),
+      });
+      if (res.ok && res.headers.get("content-type")?.includes("audio/")) {
+        const blob = await res.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        await audio.play();
+        return;
+      }
+    } catch {
+      // Automatic fallback to browser speech synthesis
+    }
+
     if (!("speechSynthesis" in window)) {
       alert("Your browser does not support speech synthesis.");
       return;
@@ -334,6 +390,19 @@ export function App() {
   }, [result, language]);
 
   // ─────────────────────────────────────────────────────────────────────────
+
+  if (!role) {
+    return (
+      <LoginPage
+        onLogin={(newToken, newRole, newEmail) => {
+          setToken(newToken);
+          setRole(newRole);
+          setUserEmail(newEmail);
+          setActiveTab(newRole === "clinician" || newRole === "admin" ? "queue" : "screen");
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -348,6 +417,37 @@ export function App() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Role navigation tabs for Clinician / Admin */}
+            {(role === "clinician" || role === "admin") && (
+              <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("queue");
+                    setSelectedCaseId(null);
+                  }}
+                  className={`text-xs px-3 py-1 rounded font-medium transition ${
+                    activeTab === "queue"
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  Review Queue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("screen")}
+                  className={`text-xs px-3 py-1 rounded font-medium transition ${
+                    activeTab === "screen"
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  New Screening
+                </button>
+              </div>
+            )}
+
             {/* Language switch — en / hi (हिंदी) */}
             <select
               aria-label="Select Language"
@@ -358,7 +458,26 @@ export function App() {
               <option value="en">English (India)</option>
               <option value="hi">Hindi (हिंदी)</option>
             </select>
-            <span className="text-xs text-slate-400">v0.2.0</span>
+
+            {/* User badge and logout */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-slate-300 font-mono hidden sm:inline">{userEmail}</span>
+              <span className="bg-slate-800 text-teal-300 px-2 py-0.5 rounded border border-slate-700 uppercase font-semibold">
+                {role}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  setToken(null);
+                  setRole(null);
+                  setUserEmail(null);
+                }}
+                className="text-slate-400 hover:text-white ml-1 underline cursor-pointer"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -372,8 +491,25 @@ export function App() {
         </div>
       </div>
 
-      {/* Main workspace */}
-      <main className="max-w-7xl mx-auto flex-1 w-full p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      {activeTab === "queue" ? (
+        <main className="max-w-5xl mx-auto flex-1 w-full p-6">
+          {selectedCaseId ? (
+            <ReviewDetail
+              screeningId={selectedCaseId}
+              token={token || ""}
+              onBack={() => setSelectedCaseId(null)}
+              onReviewSubmitted={() => setSelectedCaseId(null)}
+            />
+          ) : (
+            <ReviewList
+              token={token || ""}
+              onSelectCase={(id) => setSelectedCaseId(id)}
+            />
+          )}
+        </main>
+      ) : (
+        /* Main workspace */
+        <main className="max-w-7xl mx-auto flex-1 w-full p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* ── Left: Intake form ── */}
         <form
           onSubmit={handleSubmit}
@@ -653,6 +789,7 @@ export function App() {
           )}
         </div>
       </main>
+      )}
 
       {/* Footer */}
       <footer className="bg-white border-t py-3 px-6 text-xs text-slate-500 text-center">

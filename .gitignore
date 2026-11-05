@@ -51,3 +51,12 @@ Thumbs.db
 # NPZ statistics files
 *.npz
 
+# SQLite & local state
+*.db
+*.db-shm
+*.db-wal
+
+# Fonts
+backend/fonts/*.ttf
+backend/fonts/*.otf
+
