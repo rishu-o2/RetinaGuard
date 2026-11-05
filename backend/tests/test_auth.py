@@ -123,3 +123,56 @@ async def test_role_guard_allows_clinician(client: AsyncClient, test_db: AsyncSe
     resp = await client.get("/screenings", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_clinician_user(client: AsyncClient, test_db: AsyncSession):
+    admin = User(
+        email="admin@hospital.in",
+        hashed_password=hash_password("AdminPass123!"),
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+    test_db.add(admin)
+    await test_db.commit()
+
+    token = create_access_token(data={"sub": admin.id, "role": "admin"})
+    resp = await client.post(
+        "/auth/users",
+        json={
+            "email": "new.clinician@hospital.in",
+            "password": "SecurePassword123!",
+            "role": "clinician",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["email"] == "new.clinician@hospital.in"
+    assert data["role"] == "clinician"
+    assert data["is_active"] is True
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_create_user(client: AsyncClient, test_db: AsyncSession):
+    screener = User(
+        email="screener.create@clinic.in",
+        hashed_password=hash_password("Pass123!"),
+        role=UserRole.SCREENER,
+        is_active=True,
+    )
+    test_db.add(screener)
+    await test_db.commit()
+
+    token = create_access_token(data={"sub": screener.id, "role": "screener"})
+    resp = await client.post(
+        "/auth/users",
+        json={
+            "email": "unauthorized@hospital.in",
+            "password": "SecurePassword123!",
+            "role": "clinician",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+

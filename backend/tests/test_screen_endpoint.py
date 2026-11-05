@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -78,7 +79,7 @@ _COMMON_FORM = dict(
 class TestScreenEndpoint:
     """Integration tests that exercise the full pipeline via HTTP."""
 
-    def _post(self, png_bytes: bytes, extra_form: Optional[dict] = None) -> dict:
+    def _post(self, png_bytes: bytes, extra_form: Optional[dict] = None, headers: Optional[dict] = None):
         form = dict(_COMMON_FORM)
         if extra_form:
             form.update(extra_form)
@@ -86,6 +87,7 @@ class TestScreenEndpoint:
             "/screen/",
             data=form,
             files={"image": ("test.png", io.BytesIO(png_bytes), "image/png")},
+            headers=headers,
         )
         return resp
 
@@ -171,6 +173,32 @@ class TestScreenEndpoint:
         data = r.json()
         assert "entries" in data
         assert isinstance(data["entries"], list)
+
+    def test_anonymous_screening_forbidden_when_flag_false(self):
+        png = _make_synthetic_png(512)
+        with patch.dict(os.environ, {"ALLOW_ANONYMOUS_SCREENING": "false"}):
+            resp = self._post(png)
+            assert resp.status_code == 401
+            assert "Authentication required" in resp.json()["detail"]
+
+    def test_authenticated_screening_allowed_when_flag_false(self):
+        from retinaguard.auth.deps import get_optional_current_user
+        from retinaguard.db.models import User, UserRole
+        png = _make_synthetic_png(512)
+        mock_user = User(id="user-123", email="screener@clinic.in", role=UserRole.SCREENER, is_active=True)
+        app.dependency_overrides[get_optional_current_user] = lambda: mock_user
+        try:
+            with patch.dict(os.environ, {"ALLOW_ANONYMOUS_SCREENING": "false"}):
+                resp = self._post(png, headers={"Authorization": "Bearer mock-token"})
+                assert resp.status_code == 200
+        finally:
+            app.dependency_overrides.pop(get_optional_current_user, None)
+
+    def test_anonymous_screening_allowed_when_flag_true(self):
+        png = _make_synthetic_png(512)
+        with patch.dict(os.environ, {"ALLOW_ANONYMOUS_SCREENING": "true"}):
+            resp = self._post(png)
+            assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,40 @@
+{
+  "models": [
+    {
+      "version": "v1.0.0",
+      "epoch": 7,
+      "best_qwk_val": 0.918783195958418,
+      "checkpoint_path": "ml/runs/baseline_cpu_b0_256/best.pt",
+      "onnx_path": "ml/exports/retinaguard_dr_v1.onnx",
+      "onnx_sha256": "7d0c5d8bb1b448d09f48db586f2eff6627da5671e4abcc30c55c165d509c45aa",
+      "config_path": "configs/baseline_cpu_b0_256.yaml",
+      "image_size": [
+        256,
+        256
+      ],
+      "temperature": 1.296247,
+      "ece_before": 0.045321,
+      "ece_after": 0.033624,
+      "ood_stats_path": "models/ood_stats_v1.npz",
+      "abstention_config_path": "configs/abstention.yaml",
+      "val_metrics": {
+        "qwk": 0.9188,
+        "referable_sensitivity": 0.9641,
+        "referable_specificity": 0.9315,
+        "referable_auc": 0.9889,
+        "ci_qwk_95": [
+          0.9009,
+          0.9363
+        ],
+        "ci_sens_95": [
+          0.9384,
+          0.9868
+        ],
+        "ci_spec_95": [
+          0.9037,
+          0.9575
+        ]
+      }
+    }
+  ]
+}

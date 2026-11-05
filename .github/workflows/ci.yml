@@ -82,8 +82,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Run Node Tests
-        run: cd frontend && node --test tests/*.test.js
+      - name: Run Frontend Tests
+        run: |
+          cd frontend
+          npm ci
+          npm test
 
   dependency-scan:
     name: Dependency Security Scan

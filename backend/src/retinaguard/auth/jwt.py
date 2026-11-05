@@ -64,3 +64,4 @@ def decode_token(token: str) -> dict[str, Any]:
             detail="Could not validate credentials or token expired",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
+

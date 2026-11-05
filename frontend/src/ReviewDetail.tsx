@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ReviewDetailProps {
   screeningId: string;
@@ -273,3 +273,4 @@ export function ReviewDetail({
     </div>
   );
 }
+

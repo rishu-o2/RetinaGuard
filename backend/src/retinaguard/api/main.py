@@ -50,12 +50,61 @@ async def seed_admin_user() -> None:
             logger.info("Seeded initial admin user: %s", admin_email)
 
 
+def verify_model_artifacts() -> None:
+    """Check whether ONNX model and OOD stats exist and log/print a clear error if missing."""
+    from retinaguard.core.config import _find_repo_root
+    repo_root = _find_repo_root()
+    registry_path = repo_root / "models" / "registry.json"
+
+    onnx_path = repo_root / "ml" / "exports" / "retinaguard_dr_v1.onnx"
+    ood_path = repo_root / "models" / "ood_stats_v1.npz"
+
+    if registry_path.exists():
+        try:
+            import json
+            with open(registry_path, encoding="utf-8") as f:
+                reg = json.load(f)
+            entries = reg.get("models", [])
+            if entries:
+                entry = entries[0]
+                if "onnx_path" in entry:
+                    onnx_path = repo_root / entry["onnx_path"]
+                if "ood_stats_path" in entry:
+                    ood_path = repo_root / entry["ood_stats_path"]
+        except Exception as exc:
+            logger.warning("Could not read registry.json: %s", exc)
+
+    missing = []
+    if not onnx_path.exists():
+        missing.append(f"ONNX Model: {onnx_path}")
+    if not ood_path.exists():
+        missing.append(f"OOD Statistics: {ood_path}")
+
+    if missing:
+        msg = (
+            "\n" + "=" * 70 + "\n"
+            "STARTUP WARNING: Missing AI model artifacts:\n" +
+            "\n".join(f"  - {m}" for m in missing) + "\n\n"
+            "Inference will fall back to UNCERTAIN until these artifacts are provided.\n"
+            "To place them:\n"
+            "  Mount external weights in container: docker compose up (with ./models mounted)\n"
+            "  Or mount directly: docker run -v /path/to/models:/app/models ...\n"
+            "  Or generate locally: python ml/export_onnx.py && python ml/generate_ood_stats.py\n"
+            + "=" * 70
+        )
+        logger.error(msg)
+        print(msg)
+    else:
+        logger.info("AI model artifacts verified: ONNX model and OOD stats present.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup and shutdown lifecycle."""
     try:
         await create_all_tables()
         await seed_admin_user()
+        verify_model_artifacts()
     except Exception as exc:
         logger.warning("DB table creation or admin seed warning: %s", exc)
     yield

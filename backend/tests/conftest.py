@@ -1,5 +1,10 @@
 """Pytest fixtures for RetinaGuard tests."""
 
+import os
+
+# Default to allowing anonymous screening for unit/integration tests that don't pass headers
+os.environ.setdefault("ALLOW_ANONYMOUS_SCREENING", "true")
+
 import pytest
 from retinaguard.core.consent import ConsentPurpose, DPDPProcessingConsent
 from retinaguard.core.models import (

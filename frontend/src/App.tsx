@@ -46,7 +46,7 @@ const URGENCY_COLOURS: Record<string, string> = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function UncertainCard({
+export function UncertainCard({
   result,
   language,
 }: {
@@ -97,7 +97,7 @@ function UncertainCard({
   );
 }
 
-function ResultCard({
+export function ResultCard({
   result,
   language,
   onPlayAudio,

@@ -46,3 +46,4 @@ async def synthesize_voice(request: VoiceRequest) -> Response:
             content={"fallback": "browser_speech", "message": "Voice service unavailable, use browser speech"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+

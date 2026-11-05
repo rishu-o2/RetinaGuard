@@ -74,3 +74,4 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
         return current_user
 
     return role_checker
+

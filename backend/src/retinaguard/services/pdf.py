@@ -18,13 +18,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from retinaguard.core.config import _find_repo_root
+
 logger = logging.getLogger("retinaguard.services.pdf")
 
 # ---------------------------------------------------------------------------
 # Font paths
 # ---------------------------------------------------------------------------
 
-_FONTS_DIR = Path(__file__).parent.parent.parent.parent.parent / "fonts"
+_REPO_ROOT = _find_repo_root()
+_FONTS_DIR = _REPO_ROOT / "backend" / "fonts"
 _NOTO_DEVANAGARI = _FONTS_DIR / "NotoSansDevanagari-Regular.ttf"
 
 # ---------------------------------------------------------------------------
@@ -56,7 +59,7 @@ except ImportError:  # pragma: no cover
 # Models registry helper
 # ---------------------------------------------------------------------------
 
-_REGISTRY_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / "models" / "registry.json"
+_REGISTRY_PATH = _REPO_ROOT / "models" / "registry.json"
 
 
 def _get_model_version() -> str:

@@ -82,6 +82,31 @@ def test_pdf_generation_hi():
     assert len(pdf_bytes) > 1000
 
 
+def test_hindi_pdf_contains_devanagari_characters():
+    """Verify that Hindi PDF renders and embeds real Devanagari text."""
+    import io
+    from pypdf import PdfReader
+
+    svc = PDFReportService()
+    sample_result = {
+        "patient_pseudonym_id": "anon-hash-67890",
+        "eye_side": "OS",
+        "camera_type": "TABLETOP",
+        "grade": 3,
+        "grade_label_hi": "गंभीर नॉन-प्रोलिफ़ेरेटिव DR (ग्रेड 3)",
+        "urgency": "URGENT",
+        "follow_up_interval_months": 1,
+        "referral": "REFERABLE",
+        "report_text": "गंभीर रेटिनोपैथी के लक्षण। तत्काल नेत्र रोग विशेषज्ञ को दिखाएं।",
+        "clinician_confirmation": "confirmed",
+    }
+    pdf_bytes = svc.generate(screening_id="scr-devanagari", result_json=sample_result, language="hi")
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    extracted = "".join((page.extract_text() or "") for page in reader.pages)
+    devanagari_chars = [c for c in extracted if 0x0900 <= ord(c) <= 0x097F]
+    assert len(devanagari_chars) >= 10, f"Expected Devanagari chars, got {len(devanagari_chars)}"
+
+
 def test_pdf_no_phi():
     svc = PDFReportService()
     pseudonym_id = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -144,3 +169,4 @@ async def test_pdf_endpoint_download(client: AsyncClient, test_db: AsyncSession)
     assert resp.headers["content-type"] == "application/pdf"
     assert "attachment;" in resp.headers.get("content-disposition", "")
     assert resp.content.startswith(b"%PDF")
+

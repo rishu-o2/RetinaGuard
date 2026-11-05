@@ -2,13 +2,27 @@ import React, { useState } from "react";
 
 interface LoginPageProps {
   onLogin: (token: string, role: string, email: string) => void;
+  allowAnonymous?: boolean;
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, allowAnonymous: propAllowAnonymous }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [allowAnonymous, setAllowAnonymous] = useState<boolean>(propAllowAnonymous ?? false);
+
+  React.useEffect(() => {
+    if (propAllowAnonymous !== undefined) return;
+    fetch("/auth/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.allow_anonymous_screening === "boolean") {
+          setAllowAnonymous(data.allow_anonymous_screening);
+        }
+      })
+      .catch(() => {});
+  }, [propAllowAnonymous]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,17 +117,20 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </button>
           </form>
 
-          <div className="mt-6 border-t border-slate-200 pt-4 text-center">
-            <button
-              type="button"
-              onClick={handleScreenerGuest}
-              className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
-            >
-              Continue as PHC Screener (Screening only) →
-            </button>
-          </div>
+            {allowAnonymous && (
+              <div className="mt-6 border-t border-slate-200 pt-4 text-center">
+                <button
+                  type="button"
+                  onClick={handleScreenerGuest}
+                  className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
+                >
+                  Continue as PHC Screener (Screening only) →
+                </button>
+              </div>
+            )}
         </div>
       </div>
     </div>
   );
 }
+

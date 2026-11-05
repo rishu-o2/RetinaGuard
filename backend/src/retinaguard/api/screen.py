@@ -17,14 +17,16 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 from typing import Annotated, Optional
 from uuid import uuid4
 
 import numpy as np
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
 from retinaguard.agents.graph import run_screening_pipeline
+from retinaguard.auth.deps import get_optional_current_user
 from retinaguard.core.logging import get_logger
 from retinaguard.core.models import (
     CameraType,
@@ -39,6 +41,7 @@ from retinaguard.core.models import (
     Urgency,
 )
 from retinaguard.core.consent import DPDPProcessingConsent
+from retinaguard.db.models import User
 from retinaguard.rules.engine import ClinicalRulesEngine
 from retinaguard.services.audit import AuditLedger
 from retinaguard.services.inference import ONNXInferenceService
@@ -141,6 +144,7 @@ async def screen_image(
     hba1c: Annotated[Optional[float], Form(ge=3.5, le=25.0)] = None,
     is_pregnant: Annotated[bool, Form()] = False,
     language: Annotated[str, Form(description="Preferred report language: 'en' or 'hi'")] = "en",
+    current_user: Annotated[Optional[User], Depends(get_optional_current_user)] = None,
 ) -> JSONResponse:
     """End-to-end DR screening pipeline.
 
@@ -148,6 +152,14 @@ async def screen_image(
     Always returns a ScreeningResult; unsafe images produce UNCERTAIN outcomes
     with human-readable rejection reasons.
     """
+    # Check authentication requirement
+    allow_anon = os.environ.get("ALLOW_ANONYMOUS_SCREENING", "false").lower() in ("true", "1", "yes")
+    if current_user is None and not allow_anon:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required for screening. Please log in.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     # ── 1. Read & hash ────────────────────────────────────────────────────
     raw_bytes = await image.read()
     if len(raw_bytes) == 0:
