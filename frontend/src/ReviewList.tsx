@@ -10,6 +10,7 @@ export interface ScreeningItem {
   urgency: string | null;
   referral: string | null;
   is_uncertain: boolean;
+  flag?: string | null;
 }
 
 interface ReviewListProps {
@@ -92,7 +93,7 @@ export function ReviewList({ token, onSelectCase }: ReviewListProps) {
                 </span>
                 {sc.is_uncertain ? (
                   <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded font-bold">
-                    UNCERTAIN
+                    {sc.flag || "needs recapture or review"}
                   </span>
                 ) : (
                   <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded font-medium">

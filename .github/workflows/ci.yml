@@ -113,3 +113,43 @@ jobs:
         run: |
           cd frontend
           npm audit --audit-level=high || true
+
+  docker-smoke:
+    name: Docker Build & Health Check
+    runs-on: ubuntu-latest
+    # Run only on main branch pushes to save CI minutes on PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      JWT_SECRET_KEY: ci-docker-test-secret-key-do-not-use
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: ci-admin-password-test
+      DATABASE_URL: postgresql+asyncpg://retinaguard:retinaguard@db:5432/retinaguard_db
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Start stack
+        run: docker compose up -d
+
+      - name: Wait for backend health
+        run: |
+          echo "Waiting for backend to become healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "✓ Backend healthy after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "✗ Backend did not become healthy within 60s"
+          docker compose logs backend
+          exit 1
+
+      - name: Show running containers
+        run: docker compose ps
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

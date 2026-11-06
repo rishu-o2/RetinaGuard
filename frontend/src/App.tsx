@@ -86,8 +86,8 @@ export function UncertainCard({
 
       <div className="rounded bg-orange-100 border border-orange-300 p-3 text-sm text-orange-900 font-medium">
         {language === "hi"
-          ? "कृपया छवि पुनः लें (recapture) और एक प्रशिक्षित चिकित्सक से समीक्षा (clinician review) करवाएँ।"
-          : "Please recapture the fundus image and request a clinician review. Do not act on this result."}
+          ? "कृपया छवि पुनः लें (retake the photo if possible)। एक चिकित्सक इस मामले की समीक्षा करेंगे (a clinician will review this)। इस परिणाम पर स्वतः कोई निर्णय न लें।"
+          : "Please recapture the fundus image — retake the photo if possible. A clinician will review this case. Do not act on this result."}
       </div>
 
       <p className="text-xs text-orange-600">

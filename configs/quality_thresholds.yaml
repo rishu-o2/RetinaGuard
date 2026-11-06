@@ -11,8 +11,8 @@ profiles:
   tabletop:
     name: "Tabletop Fundus Camera (Zeiss, Topcon, Canon, Kowa)"
     description: "High-resolution desktop camera in fixed darkroom or mydriatic setup."
-    min_resolution_width: 1024         # NHS DESP standard minimum # NEEDS CLINICAL REVIEW
-    min_resolution_height: 1024        # NHS DESP standard minimum # NEEDS CLINICAL REVIEW
+    min_resolution_width: 256          # Model input size; retina cropped to 256px before inference # NEEDS CLINICAL REVIEW
+    min_resolution_height: 256         # Model input size; retina cropped to 256px before inference # NEEDS CLINICAL REVIEW
     blur_variance_threshold: 12.21     # Fixed 512px resolution-normalized Laplacian variance # NEEDS CLINICAL REVIEW
     fov_min_area_ratio: 0.35           # Fundus must occupy at least 35% of image area # NEEDS CLINICAL REVIEW
     fov_min_circularity: 0.65          # 4*pi*area / perimeter^2 circularity metric # NEEDS CLINICAL REVIEW

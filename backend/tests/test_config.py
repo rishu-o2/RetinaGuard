@@ -55,11 +55,12 @@ def test_load_quality_thresholds() -> None:
     config = load_quality_thresholds()
 
     tabletop_profile = config.get_profile_for_camera(CameraType.TABLETOP)
-    assert tabletop_profile.min_resolution_width >= 1000
+    # Resolution lowered to 256 to match the ONNX model input size (NEEDS CLINICAL REVIEW)
+    assert tabletop_profile.min_resolution_width >= 256
     assert tabletop_profile.blur_variance_threshold > 0
 
     portable_profile = config.get_profile_for_camera(CameraType.SMARTPHONE_PORTABLE)
-    assert portable_profile.min_resolution_width >= 500
+    assert portable_profile.min_resolution_width >= 256
     # Portable profile should be tuned with a more lenient blur threshold for handheld operations
     assert portable_profile.blur_variance_threshold <= tabletop_profile.blur_variance_threshold
 

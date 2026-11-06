@@ -37,6 +37,7 @@ class ScreeningSummary(BaseModel):
     urgency: Optional[str] = None
     referral: Optional[str] = None
     is_uncertain: bool = False
+    flag: Optional[str] = None
 
 
 @router.get("", response_model=list[ScreeningSummary])
@@ -63,6 +64,7 @@ async def list_screenings(
         except Exception:
             rdata = {}
 
+        is_unc = rdata.get("is_uncertain", False)
         summaries.append(
             ScreeningSummary(
                 id=s.id,
@@ -73,7 +75,8 @@ async def list_screenings(
                 grade_label=rdata.get("grade_label_en") or rdata.get("grade_label"),
                 urgency=rdata.get("urgency"),
                 referral=rdata.get("referral"),
-                is_uncertain=rdata.get("is_uncertain", False),
+                is_uncertain=is_unc,
+                flag="needs recapture or review" if is_unc else None,
             )
         )
     return summaries
