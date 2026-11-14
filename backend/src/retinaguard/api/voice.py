@@ -15,7 +15,7 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 
 class VoiceRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Generic advice text to synthesize. NO PHI.")
-    language: str = Field("en", description="'en' or 'hi'")
+    language: str = Field("en", description="Language code: en, hi, pa, te, ta, ml, kn, bn, mr, gu, od")
 
 
 @router.post("", summary="Synthesize voice for screening advice text")

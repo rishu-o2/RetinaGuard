@@ -1,18 +1,32 @@
-"""Tests for voice synthesis provider and /voice endpoint."""
+"""Tests for voice synthesis provider and /voice endpoint.
+
+Verifies:
+- Sentence chunking with max_chars=450 and Devanagari danda (।) / double danda (॥)
+- Multi-chunk WAV frame merging into valid RIFF WAV
+- 11-language mapping (hi/pa/te/ta/ml/kn/bn/mr/gu/od/en -> xx-IN)
+- Sarvam Bulbul:v3 API client payload (model=bulbul:v3, speaker=shubh)
+- Multi-tier fallback chain (Sarvam -> Edge-TTS -> Browser 503 fallback)
+"""
 
 from __future__ import annotations
 
 import base64
-from unittest.mock import AsyncMock, patch
+import io
+import wave
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from retinaguard.api.main import app
 from retinaguard.services.voice_provider import (
     BrowserFallbackProvider,
+    EdgeTTSVoiceProvider,
+    ResilientVoiceProvider,
+    SARVAM_LANGUAGE_MAP,
     SarvamVoiceProvider,
     _split_text,
     get_voice_provider,
+    merge_wav_bytes,
 )
 
 
@@ -23,60 +37,138 @@ async def client():
         yield ac
 
 
+def _create_mock_wav(num_frames: int = 500, sample_rate: int = 16000) -> bytes:
+    """Helper to generate valid dummy WAV bytes in memory."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sample_rate)
+        w.writeframes(b"\x00\x00" * num_frames)
+    return buf.getvalue()
+
+
+# ── 1. Chunking Tests ─────────────────────────────────────────────────────────
+
+
 def test_text_chunking_english():
-    text = "Sentence one. Sentence two. Sentence three. Sentence four."
-    chunks = _split_text(text, max_chars=30)
-    assert len(chunks) > 1
+    text = (
+        "Diabetic retinopathy screening completed. "
+        "No apparent signs of retinopathy observed at this time. "
+        "Please schedule your routine comprehensive dilated eye exam in twelve months. "
+        "Maintain glycemic control as advised by your physician."
+    )
+    chunks = _split_text(text, max_chars=80)
+    assert len(chunks) >= 2
     for c in chunks:
-        assert len(c) <= 30
+        assert len(c) <= 80
 
 
 def test_text_chunking_hindi_danda():
-    text = "पहला वाक्य है। दूसरा वाक्य भी है। तीसरा वाक्य लंबा है और विवरण देता है।"
-    chunks = _split_text(text, max_chars=35)
-    assert len(chunks) > 1
+    text = (
+        "मधुमेह रेटिनोपैथी की जांच संपन्न हुई। "
+        "वर्तमान में किसी गंभीर रेटिनोपैथी के लक्षण नहीं दिखे हैं। "
+        "कृपया 12 महीने के भीतर नियमित अनुवर्ती जांच अवश्य कराएं। "
+        "चिकित्सक द्वारा बताए गए रक्त शर्करा स्तर को नियंत्रित रखें।"
+    )
+    chunks = _split_text(text, max_chars=70)
+    assert len(chunks) >= 2
     for c in chunks:
-        assert len(c) <= 35
+        assert len(c) <= 70
 
 
-def test_provider_factory_selection(monkeypatch):
-    monkeypatch.delenv("SARVAM_API_KEY", raising=False)
-    p1 = get_voice_provider()
-    assert isinstance(p1, BrowserFallbackProvider)
-
-    monkeypatch.setenv("SARVAM_API_KEY", "mock_key_12345")
-    p2 = get_voice_provider()
-    assert isinstance(p2, SarvamVoiceProvider)
+# ── 2. WAV Merge Tests ───────────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_voice_endpoint_fallback_when_no_key(client: AsyncClient, monkeypatch):
-    monkeypatch.delenv("SARVAM_API_KEY", raising=False)
-    resp = await client.post("/voice", json={"text": "Please return for annual follow-up in 12 months.", "language": "en"})
-    assert resp.status_code == 503
-    data = resp.json()
-    assert data["fallback"] == "browser_speech"
+def test_wav_merge():
+    wav1 = _create_mock_wav(num_frames=600, sample_rate=16000)
+    wav2 = _create_mock_wav(num_frames=400, sample_rate=16000)
+
+    merged = merge_wav_bytes([wav1, wav2])
+    assert merged.startswith(b"RIFF")
+
+    with wave.open(io.BytesIO(merged), "rb") as r:
+        assert r.getnframes() == 1000
+        assert r.getframerate() == 16000
+        assert r.getnchannels() == 1
 
 
-@pytest.mark.asyncio
-async def test_voice_endpoint_sarvam_success(client: AsyncClient, monkeypatch):
-    monkeypatch.setenv("SARVAM_API_KEY", "test_sarvam_key")
-    mock_audio_bytes = b"RIFF....WAVEfmt ....data...."
+# ── 3. 11-Language Mapping Tests ─────────────────────────────────────────────
 
-    with patch("retinaguard.services.voice_provider.SarvamVoiceProvider.synthesize", new_callable=AsyncMock) as mock_synth:
-        mock_synth.return_value = mock_audio_bytes
-        resp = await client.post("/voice", json={"text": "Referral to ophthalmologist is recommended.", "language": "en"})
-        assert resp.status_code == 200
-        assert resp.headers["content-type"] == "audio/wav"
-        assert resp.content == mock_audio_bytes
+
+def test_language_map():
+    expected_11 = ["hi", "pa", "te", "ta", "ml", "kn", "bn", "mr", "gu", "od", "en"]
+    for lang in expected_11:
+        assert lang in SARVAM_LANGUAGE_MAP
+        assert SARVAM_LANGUAGE_MAP[lang] == f"{lang}-IN"
+
+
+# ── 4. Sarvam Bulbul:v3 API Client Payload Tests ─────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_voice_endpoint_sarvam_failure_falls_back(client: AsyncClient, monkeypatch):
-    monkeypatch.setenv("SARVAM_API_KEY", "test_sarvam_key")
+async def test_sarvam_bulbul_v3_request_payload(monkeypatch):
+    monkeypatch.setenv("SARVAM_API_KEY", "mock_sarvam_api_key")
+    provider = SarvamVoiceProvider()
 
-    with patch("retinaguard.services.voice_provider.SarvamVoiceProvider.synthesize", new_callable=AsyncMock) as mock_synth:
-        mock_synth.side_effect = Exception("Sarvam network timeout")
-        resp = await client.post("/voice", json={"text": "Routine checkup advised.", "language": "en"})
+    mock_wav = _create_mock_wav(num_frames=100)
+    mock_b64 = base64.b64encode(mock_wav).decode("ascii")
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"audios": [mock_b64]}
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result_bytes = await provider.synthesize(
+            text="नियमित जांच 12 महीने बाद कराएं।",
+            language="hi",
+        )
+
+        assert result_bytes.startswith(b"RIFF")
+        assert mock_post.called
+
+        # Verify call arguments
+        call_kwargs = mock_post.call_args[1]
+        assert call_kwargs["headers"]["api-subscription-key"] == "mock_sarvam_api_key"
+        payload = call_kwargs["json"]
+        assert payload["model"] == "bulbul:v3"
+        assert payload["speaker"] == "shubh"
+        assert payload["target_language_code"] == "hi-IN"
+
+
+# ── 5. Multi-Tier Fallback Chain Tests ───────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fallback_chain_sarvam_to_edge_tts(monkeypatch):
+    """When Sarvam fails or raises, ResilientVoiceProvider falls back to Edge-TTS."""
+    monkeypatch.setenv("SARVAM_API_KEY", "mock_key")
+
+    mock_sarvam = MagicMock(spec=SarvamVoiceProvider)
+    mock_sarvam.synthesize = AsyncMock(side_effect=Exception("Sarvam HTTP 500 error"))
+
+    mock_edge = MagicMock(spec=EdgeTTSVoiceProvider)
+    mock_edge.synthesize = AsyncMock(return_value=b"RIFF_FROM_EDGE_TTS")
+
+    resilient = ResilientVoiceProvider(sarvam_provider=mock_sarvam, edge_provider=mock_edge)
+    audio = await resilient.synthesize("Routine follow-up.", "en")
+
+    assert audio == b"RIFF_FROM_EDGE_TTS"
+    assert mock_sarvam.synthesize.called
+    assert mock_edge.synthesize.called
+
+
+@pytest.mark.asyncio
+async def test_fallback_chain_all_fail_to_browser_speech(client: AsyncClient, monkeypatch):
+    """When both Sarvam and Edge-TTS fail, endpoint returns HTTP 503 browser fallback."""
+    monkeypatch.setenv("SARVAM_API_KEY", "mock_key")
+
+    with patch("retinaguard.services.voice_provider.ResilientVoiceProvider.synthesize", new_callable=AsyncMock) as mock_synth:
+        mock_synth.side_effect = NotImplementedError("Browser fallback")
+
+        resp = await client.post("/voice", json={"text": "Annual review scheduled.", "language": "en"})
         assert resp.status_code == 503
-        assert resp.json()["fallback"] == "browser_speech"
+        data = resp.json()
+        assert data["fallback"] == "browser_speech"
+        assert "browser" in data["message"]

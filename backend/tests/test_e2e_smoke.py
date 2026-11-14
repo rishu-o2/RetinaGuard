@@ -270,15 +270,18 @@ async def test_e2e_three_image_smoke():
                     shutil.copy2(png_path, artifact_dir / png_path.name)
             doc_hi.close()
 
-            # 5f. Call /voice and verify fallback (no SARVAM_API_KEY in test environment)
+            # 5f. Call /voice and verify response (Edge-TTS tier audio 200 or browser fallback 503)
             voice_text = s_result.get("voice_text") or "Screening assessment completed."
             voice_resp = await client.post(
                 "/voice",
                 json={"text": voice_text, "language": "en"},
             )
-            assert voice_resp.status_code == 503
-            voice_data = voice_resp.json()
-            assert voice_data.get("fallback") == "browser_speech"
+            assert voice_resp.status_code in (200, 503)
+            if voice_resp.status_code == 200:
+                assert len(voice_resp.content) > 100
+            else:
+                voice_data = voice_resp.json()
+                assert voice_data.get("fallback") == "browser_speech"
 
         # Step 6: Verify audit chain integrity across all created events
         audit_resp = await client.get("/screen/audit/verify")

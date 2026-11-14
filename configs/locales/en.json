@@ -1,6 +1,7 @@
 {
   "language": "en",
   "language_name": "English",
+  "reviewed": true,
   "grades": {
     "0": "No Apparent Diabetic Retinopathy",
     "1": "Mild Non-Proliferative Diabetic Retinopathy",
