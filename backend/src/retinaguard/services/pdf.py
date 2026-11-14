@@ -132,6 +132,7 @@ class PDFReportService:
         screening_id: str,
         result_json: dict[str, Any],
         language: str = "en",
+        facilities: list[dict] | None = None,
     ) -> bytes:
         """Generate a PDF report.
 
@@ -375,6 +376,44 @@ class PDFReportService:
                 .replace("\n", "<br/>")
             )
             story.append(Paragraph(safe_text, report_style))
+            story.append(Spacer(1, 0.4 * cm))
+
+        # ── 5b. Nearest Eye Care Facilities (Referral Directory) ─────────────
+        active_facilities = facilities or result_json.get("facilities") or []
+        if active_facilities:
+            story.append(Paragraph("NEAREST EYE CARE FACILITIES", section_head_style))
+            fac_rows = [[
+                Paragraph("<b>Facility / Type</b>", ParagraphStyle("FHT", fontName="Helvetica-Bold", fontSize=8)),
+                Paragraph("<b>Address</b>", ParagraphStyle("FHA", fontName="Helvetica-Bold", fontSize=8)),
+                Paragraph("<b>Contact</b>", ParagraphStyle("FHC", fontName="Helvetica-Bold", fontSize=8)),
+            ]]
+            for fac in active_facilities[:3]:
+                fac_name = fac.get("name", "")
+                fac_type = f" ({fac.get('type', '')})" if fac.get("type") else ""
+                name_cell = f"<b>{fac_name}</b>{fac_type}"
+                addr_cell = fac.get("address", "")
+                phone_cell = fac.get("phone", "")
+                fac_rows.append([
+                    Paragraph(name_cell, ParagraphStyle("FNC", fontName="Helvetica", fontSize=8)),
+                    Paragraph(addr_cell, ParagraphStyle("FAC", fontName="Helvetica", fontSize=8)),
+                    Paragraph(phone_cell, ParagraphStyle("FPC", fontName="Helvetica", fontSize=8)),
+                ])
+            fac_table = Table(
+                fac_rows,
+                colWidths=[doc.width * 0.35, doc.width * 0.45, doc.width * 0.20],
+            )
+            fac_table.setStyle(
+                TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0f4f8")),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ])
+            )
+            story.append(fac_table)
             story.append(Spacer(1, 0.4 * cm))
 
         # ── 6. Clinician review section ──────────────────────────────────────

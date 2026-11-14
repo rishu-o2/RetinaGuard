@@ -15,7 +15,8 @@ Conditional Routing:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+import time
+from typing import Any, Callable, Optional
 from uuid import uuid4
 
 from langgraph.graph import END, StateGraph
@@ -62,6 +63,30 @@ def finalize_node(state: ScreeningAgentState) -> dict:
         urgency_enum = decision.urgency
         interval = decision.follow_up_interval_months
 
+    # Ensure all 5 agents are represented in order: vision, safety, guideline, audit, voice
+    raw_trace = list(state.get("trace") or [])
+    agents_order = ["vision", "safety", "guideline", "audit", "voice"]
+    trace_by_agent = {t["agent"]: t for t in raw_trace if isinstance(t, dict) and "agent" in t}
+
+    _DEFAULT_NOTES = {
+        "vision": "Quality gate, OOD check and ONNX inference",
+        "safety": "Deterministic clinical rules engine",
+        "guideline": "RAG clinical guideline retrieval",
+        "audit": "Hash-chained tamper-evident audit ledger append",
+        "voice": "Multilingual speech narrative generation",
+    }
+    final_trace = []
+    for ag in agents_order:
+        if ag in trace_by_agent:
+            final_trace.append(trace_by_agent[ag])
+        else:
+            final_trace.append({
+                "agent": ag,
+                "status": "skipped",
+                "duration_ms": 0.0,
+                "note": f"Skipped: {_DEFAULT_NOTES.get(ag, 'Agent skipped')}",
+            })
+
     screening_res = ScreeningResult(
         screening_id=uuid4(),
         patient_pseudonym_id=context.patient_pseudonym_id,
@@ -85,9 +110,10 @@ def finalize_node(state: ScreeningAgentState) -> dict:
         guideline_explanation=state.get("guideline_explanation"),
         guideline_citations=state.get("guideline_citations", []),
         guideline_source_note=state.get("guideline_source_note"),
+        trace=final_trace,
     )
 
-    return {"final_result": screening_res}
+    return {"final_result": screening_res, "trace": final_trace}
 
 
 def should_skip_guideline(state: ScreeningAgentState) -> str:
@@ -96,6 +122,53 @@ def should_skip_guideline(state: ScreeningAgentState) -> str:
         logger.info("Graph routing: Early exit active. Skipping guideline agent -> audit.")
         return "audit"
     return "guideline"
+
+
+def _traced_node(agent_name: str, fn: Callable) -> Callable:
+    """Wrap a LangGraph node callable with timing and trace recording.
+
+    The trace entry contains NO patient data, NO image data, and NO pseudonym.
+    It records only the agent name, outcome status, duration in ms, and a
+    generic human-readable note safe for display to any user.
+    """
+
+    def _wrapper(state: ScreeningAgentState) -> dict:
+        start = time.perf_counter()
+        updates = fn(state)
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+
+        # Determine status from the returned state updates
+        if updates.get("early_exit"):
+            status = "early_exit"
+        elif updates.get("is_uncertain") and agent_name == "vision":
+            status = "early_exit"
+        else:
+            status = "passed"
+
+        # Generic notes — no patient data, no image data
+        _NOTES: dict[str, str] = {
+            "vision": "Quality gate, OOD check and ONNX inference",
+            "safety": "Deterministic clinical rules engine",
+            "guideline": "RAG guideline retrieval and safety validation",
+            "audit": "Hash-chained audit ledger append",
+            "voice": "Multilingual speech narrative generation",
+            "finalize": "Result assembly",
+        }
+        note = _NOTES.get(agent_name, "Agent completed")
+
+        trace_entry = {
+            "agent": agent_name,
+            "status": status,
+            "duration_ms": elapsed_ms,
+            "note": note,
+        }
+
+        # Merge trace into updates
+        existing_trace = list(state.get("trace") or [])
+        updates["trace"] = existing_trace + [trace_entry]
+        return updates
+
+    return _wrapper
 
 
 def build_screening_graph(
@@ -115,11 +188,11 @@ def build_screening_graph(
     workflow = StateGraph(ScreeningAgentState)
 
     # 1. Add agent nodes
-    workflow.add_node("vision", v_agent)
-    workflow.add_node("safety", s_agent)
-    workflow.add_node("guideline", g_agent)
-    workflow.add_node("audit", a_agent)
-    workflow.add_node("voice", vo_agent)
+    workflow.add_node("vision", _traced_node("vision", v_agent))
+    workflow.add_node("safety", _traced_node("safety", s_agent))
+    workflow.add_node("guideline", _traced_node("guideline", g_agent))
+    workflow.add_node("audit", _traced_node("audit", a_agent))
+    workflow.add_node("voice", _traced_node("voice", vo_agent))
     workflow.add_node("finalize", finalize_node)
 
     # 2. Add edges & conditional branching
@@ -176,6 +249,7 @@ def run_screening_pipeline(
         "uncertainty_reasons": [],
         "early_exit": False,
         "guideline_citations": [],
+        "trace": [],
     }
 
     result_state = graph.invoke(initial_state)

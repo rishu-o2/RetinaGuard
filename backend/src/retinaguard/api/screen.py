@@ -231,6 +231,8 @@ async def screen_image(
     payload["guideline_citations"] = result.guideline_citations
     payload["guideline_source_note"] = result.guideline_source_note
     payload["unreviewed_translation"] = unreviewed_flag
+    # Trace: generic agent timings, no patient data, no image data
+    payload["trace"] = getattr(result, "trace", None) or []
     if unreviewed_flag:
         payload["unreviewed_translation_note"] = (
             "Unreviewed translation — pending clinical validation"

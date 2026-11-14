@@ -1,7 +1,21 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { LoginPage } from "./LoginPage";
 import { ReviewList } from "./ReviewList";
 import { ReviewDetail } from "./ReviewDetail";
+import { TracePanel, AgentTraceItem } from "./TracePanel";
+import { runPrecheck, PrecheckThresholds } from "./precheck";
+import {
+  enqueueOfflineScreening,
+  getQueuedScreenings,
+  syncQueueWithServer,
+} from "./offline/queue";
+import {
+  runOfflineInference,
+  computeBufferSha256,
+  preprocessRgbaToNCHW,
+} from "./offline/inference";
+import { ModelMetadataConfig } from "./offline/rulesEngine";
+import * as ort from "onnxruntime-web";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,7 +23,15 @@ type Language = "en" | "hi";
 type CameraType = "TABLETOP" | "SMARTPHONE_PORTABLE";
 type EyeSide = "OD" | "OS";
 
-interface ScreeningResponse {
+export interface Facility {
+  name: string;
+  type?: string;
+  address?: string;
+  phone?: string;
+  source_url?: string;
+}
+
+export interface ScreeningResponse {
   screening_id: string;
   grade: number | null;
   grade_label: string;
@@ -27,6 +49,11 @@ interface ScreeningResponse {
   guideline_source_note?: string | null;
   unreviewed_translation?: boolean;
   unreviewed_translation_note?: string | null;
+  trace?: AgentTraceItem[];
+  facilities?: Facility[];
+  is_provisional?: boolean;
+  selected_district?: string;
+  selected_state?: string;
 }
 
 // ─── Grade colour helpers ─────────────────────────────────────────────────────
@@ -63,6 +90,15 @@ export function UncertainCard({
           ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
           : "⚠️ Prototype, not clinically validated"}
       </div>
+
+      {/* Provisional Offline Result Warning */}
+      {result.is_provisional && (
+        <div className="rounded border-2 border-amber-500 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950 tracking-wide text-center uppercase">
+          {language === "hi"
+            ? "🔴 अनंतिम (Provisional), ऑनलाइन होने पर पुनः जांच की जाएगी"
+            : "🔴 Provisional, will be re-checked when online"}
+        </div>
+      )}
 
       {/* Unreviewed Translation Warning */}
       {result.unreviewed_translation && (
@@ -104,6 +140,29 @@ export function UncertainCard({
       <p className="text-xs text-orange-600">
         ✓ Clinician review mandatory — event logged (no patient identifiers stored).
       </p>
+
+      {/* Nearest Eye Care Facilities */}
+      {result.facilities && result.facilities.length > 0 && (
+        <div className="rounded border border-teal-300 bg-teal-50 p-3 text-xs space-y-2 text-slate-800">
+          <p className="font-bold text-teal-900 flex items-center gap-1.5 text-sm">
+            <span>🏥</span>
+            <span>{language === "hi" ? "निकटतम नेत्र देखभाल केंद्र (Nearest eye care):" : "Nearest eye care:"}</span>
+          </p>
+          <div className="space-y-1.5">
+            {result.facilities.map((fac, idx) => (
+              <div key={idx} className="border-b border-teal-200/60 pb-1.5 last:border-0 last:pb-0">
+                <span className="font-bold text-teal-950">{fac.name}</span>
+                {fac.type && <span className="ml-1 text-teal-700">({fac.type})</span>}
+                {fac.address && <p className="text-teal-900">{fac.address}</p>}
+                {fac.phone && <p className="font-mono text-teal-900 font-medium">📞 {fac.phone}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Trace Panel */}
+      <TracePanel trace={result.trace} />
     </div>
   );
 }
@@ -133,6 +192,15 @@ export function ResultCard({
           ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
           : "⚠️ Prototype, not clinically validated"}
       </div>
+
+      {/* Provisional Offline Result Warning */}
+      {result.is_provisional && (
+        <div className="rounded border-2 border-amber-500 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950 tracking-wide text-center uppercase">
+          {language === "hi"
+            ? "🔴 अनंतिम (Provisional), ऑनलाइन होने पर पुनः जांच की जाएगी"
+            : "🔴 Provisional, will be re-checked when online"}
+        </div>
+      )}
 
       {/* Unreviewed Translation Warning */}
       {result.unreviewed_translation && (
@@ -221,8 +289,28 @@ export function ResultCard({
         </div>
       )}
 
+      {/* Nearest Eye Care Facilities */}
+      {result.facilities && result.facilities.length > 0 && (
+        <div className="rounded border border-teal-300 bg-teal-50 p-3 text-xs space-y-2 text-slate-800">
+          <p className="font-bold text-teal-900 flex items-center gap-1.5 text-sm">
+            <span>🏥</span>
+            <span>{language === "hi" ? "निकटतम नेत्र देखभाल केंद्र (Nearest eye care):" : "Nearest eye care:"}</span>
+          </p>
+          <div className="space-y-1.5">
+            {result.facilities.map((fac, idx) => (
+              <div key={idx} className="border-b border-teal-200/60 pb-1.5 last:border-0 last:pb-0">
+                <span className="font-bold text-teal-950">{fac.name}</span>
+                {fac.type && <span className="ml-1 text-teal-700">({fac.type})</span>}
+                {fac.address && <p className="text-teal-900">{fac.address}</p>}
+                {fac.phone && <p className="font-mono text-teal-900 font-medium">📞 {fac.phone}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Buttons row */}
-      <div className="flex flex-wrap gap-2 mt-2 print:hidden">
+      <div className="flex flex-wrap gap-2 mt-2 print:hidden items-center">
         {/* Audio play button — Web Speech API */}
         {result.voice_text && (
           <button
@@ -246,9 +334,15 @@ export function ResultCard({
         </button>
 
         {/* Server-side Referral Report PDF */}
-        {result.screening_id && (
+        {result.screening_id && !result.is_provisional && (
           <button
-            onClick={() => window.open(`/screenings/${result.screening_id}/report.pdf?lang=${language}`, "_blank")}
+            onClick={() => {
+              const qs = new URLSearchParams();
+              qs.set("lang", language);
+              if (result.selected_district) qs.set("district", result.selected_district);
+              if (result.selected_state) qs.set("state", result.selected_state);
+              window.open(`/screenings/${result.screening_id}/report.pdf?${qs.toString()}`, "_blank");
+            }}
             aria-label="Download PDF report"
             className="flex items-center space-x-2 px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition"
           >
@@ -256,11 +350,22 @@ export function ResultCard({
             <span>{language === "hi" ? "PDF डाउनलोड करें" : "Download PDF"}</span>
           </button>
         )}
+
+        {result.is_provisional && (
+          <span className="text-xs text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded border border-amber-300 font-medium">
+            {language === "hi"
+              ? "⚠️ अनंतिम रिपोर्ट: अंतिम PDF केवल ऑनलाइन सत्यापन के बाद"
+              : "⚠️ Provisional report: Final PDF available after online sync"}
+          </span>
+        )}
       </div>
 
       <p className="text-xs text-slate-400">
         ✓ Clinician review mandatory. Screening ID: {result.screening_id}
       </p>
+
+      {/* Trace Panel */}
+      <TracePanel trace={result.trace} />
     </div>
   );
 }
@@ -311,6 +416,22 @@ export function App() {
   const [isPregnant, setIsPregnant] = useState(false);
   const [dpdpConsent, setDpdpConsent] = useState(false);
 
+  // Optional district & state selector for facility directory (no GPS, not stored)
+  const [district, setDistrict] = useState("");
+  const [stateName, setStateName] = useState("");
+
+  // Precheck ("bouncer") state
+  const [precheckWarning, setPrecheckWarning] = useState<string | null>(null);
+  const [precheckBypassed, setPrecheckBypassed] = useState(false);
+
+  // Offline mode & IndexedDB queue state
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  const [queuedCount, setQueuedCount] = useState<number>(0);
+  const [syncing, setSyncing] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
   // File + preview state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -323,15 +444,104 @@ export function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── File handling ────────────────────────────────────────────────────────
+  // ── Sync & Service Worker Effects ────────────────────────────────────────
 
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedFile(file);
-    setResult(null);
-    setError(null);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  }, []);
+  const triggerSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const summary = await syncQueueWithServer(token);
+      const remaining = await getQueuedScreenings();
+      setQueuedCount(remaining.length);
+      if (summary.synced > 0) {
+        setSyncMessage(`Successfully synced ${summary.synced} offline screenings.`);
+        setTimeout(() => setSyncMessage(null), 5000);
+        // Replace provisional on-screen result with authoritative server outcome
+        if (result?.is_provisional && summary.items.length > 0) {
+          const matched = summary.items.find((it) => it.server_result);
+          if (matched && matched.server_result) {
+            setResult(matched.server_result);
+          }
+        }
+      }
+    } catch {
+      // Retry will occur automatically on next reconnect
+    } finally {
+      setSyncing(false);
+    }
+  }, [token, result]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      triggerSync();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Initial check of offline queue items
+    getQueuedScreenings()
+      .then((items) => setQueuedCount(items.length))
+      .catch(() => {});
+
+    // Register service worker if available in browser
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [triggerSync]);
+
+  // ── File handling & Pre-check ("Bouncer") ──────────────────────────────────
+
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      setSelectedFile(file);
+      setResult(null);
+      setError(null);
+      setPrecheckWarning(null);
+      setPrecheckBypassed(false);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+
+      // Run client-side canvas pre-check
+      try {
+        const camParam =
+          cameraType === "SMARTPHONE_PORTABLE" ? "smartphone_portable" : "tabletop";
+        const thResp = await fetch(`/config/precheck?camera_type=${camParam}`);
+        if (thResp.ok) {
+          const thresholds: PrecheckThresholds = await thResp.json();
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const targetW = Math.min(img.naturalWidth || 256, 256);
+            const targetH = Math.min(img.naturalHeight || 256, 256);
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, targetW, targetH);
+              const imgData = ctx.getImageData(0, 0, targetW, targetH);
+              const check = runPrecheck(imgData.data, targetW, targetH, thresholds);
+              if (!check.passed) {
+                setPrecheckWarning(
+                  "This doesn't look like a clear retinal photo. Please retake it."
+                );
+              }
+            }
+          };
+          img.src = url;
+        }
+      } catch {
+        // Fallback: If pre-check fails to run (e.g. offline/mock environment), do not block
+      }
+    },
+    [cameraType]
+  );
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -343,6 +553,133 @@ export function App() {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) handleFileSelect(file);
+  };
+
+  // Helper to read file as base64 string
+  const readFileAsBase64 = (f: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const s = reader.result as string;
+        const b64 = s.includes(",") ? s.split(",")[1] : s;
+        resolve(b64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+
+  // Helper for offline inference execution
+  const executeOfflineScreening = async (file: File) => {
+    const metaResp = await fetch("/model/metadata");
+    if (!metaResp.ok) throw new Error("Offline model metadata unavailable");
+    const metadataConfig: ModelMetadataConfig = await metaResp.json();
+
+    const modelResp = await fetch("/model/active");
+    if (!modelResp.ok) throw new Error("Offline ONNX model unavailable");
+    const modelBuffer = await modelResp.arrayBuffer();
+
+    // Verify SHA-256 integrity
+    const computedSha = await computeBufferSha256(modelBuffer);
+    if (computedSha.toLowerCase() !== metadataConfig.onnx_sha256.toLowerCase()) {
+      throw new Error("Cached model SHA-256 integrity mismatch");
+    }
+
+    const session = await ort.InferenceSession.create(new Uint8Array(modelBuffer), {
+      executionProviders: ["wasm"],
+    });
+
+    const b64 = await readFileAsBase64(file);
+    const img = new Image();
+    img.src = previewUrl || `data:${file.type};base64,${b64}`;
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      if (img.complete) resolve(null);
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D unavailable");
+    ctx.drawImage(img, 0, 0, 256, 256);
+    const imgData = ctx.getImageData(0, 0, 256, 256);
+
+    const nchw = preprocessRgbaToNCHW(imgData.data, 256, 256, 256);
+    const offlineOut = await runOfflineInference(
+      session,
+      nchw,
+      metadataConfig,
+      {
+        is_pregnant: isPregnant,
+        hba1c: hba1c ? parseFloat(hba1c) : null,
+        diabetes_duration_years: diabetesDuration ? parseFloat(diabetesDuration) : null,
+      },
+      256
+    );
+
+    const provisionalResult: ScreeningResponse = {
+      screening_id: `offline-${Date.now()}`,
+      grade: offlineOut.predicted_grade,
+      grade_label: `Grade ${offlineOut.predicted_grade}`,
+      confidence: offlineOut.confidence,
+      referral: offlineOut.decision.referral,
+      urgency: offlineOut.decision.urgency,
+      follow_up_months: offlineOut.decision.follow_up_interval_months,
+      is_uncertain: offlineOut.decision.is_uncertain,
+      clinician_review_mandatory: true,
+      report_text:
+        language === "hi"
+          ? "अनंतिम परिणाम: ऑफ़लाइन निकाला गया। ऑनलाइन होने पर सर्वर द्वारा पुनः सत्यापन किया जाएगा।"
+          : "Provisional screening result: evaluated offline. Will be re-checked when online.",
+      voice_text:
+        language === "hi"
+          ? "अनंतिम परिणाम, ऑनलाइन होने पर पुनः जांच की जाएगी।"
+          : "Provisional result, will be re-checked when online.",
+      is_provisional: true,
+      selected_district: district || undefined,
+      selected_state: stateName || undefined,
+      trace: [
+        {
+          agent: "vision",
+          status: "passed",
+          duration_ms: 20.0,
+          note: "Offline local ONNX inference via onnxruntime-web",
+        },
+        {
+          agent: "safety",
+          status: "passed",
+          duration_ms: 1.0,
+          note: "Offline client-side ClinicalRulesEngine",
+        },
+        { agent: "guideline", status: "skipped", duration_ms: 0.0, note: "Skipped in offline mode" },
+        {
+          agent: "audit",
+          status: "skipped",
+          duration_ms: 0.0,
+          note: "Queued for server-side audit logging upon sync",
+        },
+        { agent: "voice", status: "passed", duration_ms: 0.5, note: "Client voice summary generated" },
+      ],
+    };
+
+    // Store only pseudonymous ID in IndexedDB (no patient names or direct PHI)
+    await enqueueOfflineScreening({
+      patient_pseudonym_id: patientId || "ANON",
+      eye_side: eyeSide,
+      camera_type: cameraType,
+      age: Number(age) || 40,
+      diabetes_type: diabetesType,
+      diabetes_duration_years: diabetesDuration ? parseFloat(diabetesDuration) : null,
+      hba1c: hba1c ? parseFloat(hba1c) : null,
+      is_pregnant: isPregnant,
+      language: language,
+      image_b64: b64,
+      offline_result: provisionalResult,
+    });
+
+    const queued = await getQueuedScreenings();
+    setQueuedCount(queued.length);
+    setResult(provisionalResult);
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
@@ -361,10 +698,26 @@ export function App() {
       );
       return;
     }
+    if (precheckWarning && !precheckBypassed) {
+      setError("Please address image quality warning or click 'Send anyway'.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setResult(null);
+
+    // If browser is offline, directly execute offline screening flow
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        await executeOfflineScreening(selectedFile);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Offline evaluation failed");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const formData = new FormData();
     formData.append("image", selectedFile);
@@ -390,9 +743,46 @@ export function App() {
       }
 
       const data: ScreeningResponse = await resp.json();
+
+      // Check referral directory if district provided and result is referable or UNCERTAIN
+      const isRef =
+        String(data.referral).toUpperCase() === "REFERABLE" ||
+        String(data.referral).toUpperCase() === "REFER" ||
+        String(data.referral).toUpperCase() === "UNCERTAIN" ||
+        data.is_uncertain;
+
+      if (district && isRef) {
+        try {
+          const qs = new URLSearchParams();
+          qs.set("district", district);
+          if (stateName) qs.set("state", stateName);
+          const facResp = await fetch(`/referral?${qs.toString()}`);
+          if (facResp.ok) {
+            const facList = await facResp.json();
+            if (Array.isArray(facList) && facList.length > 0) {
+              data.facilities = facList;
+            }
+          }
+        } catch {
+          // Non-blocking referral directory lookup
+        }
+      }
+
+      data.selected_district = district || undefined;
+      data.selected_state = stateName || undefined;
       setResult(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unexpected error");
+      // If network failure occurs while online, offer seamless offline fallback
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        try {
+          await executeOfflineScreening(selectedFile);
+          return;
+        } catch (offlineErr: any) {
+          setError(`Offline evaluation failed: ${offlineErr.message}`);
+        }
+      } else {
+        setError(err instanceof Error ? err.message : "Unexpected error");
+      }
     } finally {
       setLoading(false);
     }
@@ -488,6 +878,25 @@ export function App() {
               </div>
             )}
 
+            {/* Online / Offline Status & Offline Sync Pill */}
+            <div className="flex items-center space-x-2 text-xs">
+              {isOnline ? (
+                <span className="text-emerald-400 font-medium">● Online</span>
+              ) : (
+                <span className="text-amber-400 font-medium">● Offline</span>
+              )}
+              {queuedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={triggerSync}
+                  disabled={syncing || !isOnline}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-2 py-0.5 rounded text-[11px] font-bold"
+                >
+                  {syncing ? "Syncing…" : `Sync (${queuedCount})`}
+                </button>
+              )}
+            </div>
+
             {/* Language switch */}
             <select
               aria-label="Select Language"
@@ -528,6 +937,12 @@ export function App() {
           </div>
         </div>
       </header>
+
+      {syncMessage && (
+        <div className="bg-emerald-600 text-white text-xs py-1.5 px-4 text-center font-medium shadow-inner">
+          {syncMessage}
+        </div>
+      )}
 
       {/* Disclaimer */}
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 text-xs text-amber-900">
@@ -711,6 +1126,38 @@ export function App() {
             </label>
           </div>
 
+          {/* Optional Collapsed District Selector for Eye Care Directory */}
+          <details className="rounded border border-slate-200 bg-slate-50 p-2 text-xs">
+            <summary className="font-semibold text-slate-700 cursor-pointer select-none">
+              {language === "hi" ? "वैकल्पिक: रेफरल जिला (District)" : "Optional: Referral District"}
+            </summary>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-slate-500 mb-1">State</label>
+                <input
+                  type="text"
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  placeholder="e.g. Maharashtra"
+                  className="w-full text-xs border rounded p-1.5"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-500 mb-1">District</label>
+                <input
+                  type="text"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  placeholder="e.g. Pune"
+                  className="w-full text-xs border rounded p-1.5"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1 italic">
+              No GPS used. Location is not stored with patient records.
+            </p>
+          </details>
+
           {/* DPDP Act 2023 consent */}
           <div className="border-t pt-4">
             <div className="flex items-start space-x-2">
@@ -753,6 +1200,23 @@ export function App() {
 
         {/* ── Right two columns: drop zone + results ── */}
         <div className="md:col-span-2 flex flex-col gap-6">
+          {/* Browser Pre-check Warning ("Bouncer") */}
+          {precheckWarning && !precheckBypassed && (
+            <div className="rounded border-2 border-amber-400 bg-amber-50 p-3 text-xs text-amber-900 flex items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⚠️</span>
+                <span className="font-medium">{precheckWarning}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrecheckBypassed(true)}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs whitespace-nowrap shadow"
+              >
+                Send anyway
+              </button>
+            </div>
+          )}
+
           {/* Drop zone / image preview */}
           <div
             role="button"

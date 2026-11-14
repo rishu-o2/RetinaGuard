@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TracePanel } from "./TracePanel";
 
 interface ReviewDetailProps {
   screeningId: string;
@@ -195,6 +196,9 @@ export function ReviewDetail({
           {result.report_text}
         </div>
       )}
+
+      {/* Pipeline Execution Trace */}
+      <TracePanel trace={result?.trace} />
 
       {/* Two Big Decision Buttons */}
       <div className="border-t pt-4 space-y-4">

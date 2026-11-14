@@ -175,4 +175,5 @@ class ScreeningResult(BaseModel):
     guideline_explanation: str | None = None
     guideline_citations: list[dict] = Field(default_factory=list)
     guideline_source_note: str | None = None
+    trace: list[dict] = Field(default_factory=list)
 

@@ -202,6 +202,7 @@ class ReportService:
             "audit_hash": result.audit_hash,
             "previous_audit_hash": result.previous_audit_hash,
             "guideline_sources": result.guideline_sources,
+            "trace": getattr(result, "trace", []) or [],
             "disclaimer_en": _DISCLAIMER_EN,
             "disclaimer_hi": _DISCLAIMER_HI,
         }

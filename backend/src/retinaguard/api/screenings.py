@@ -180,6 +180,8 @@ async def review_screening(
 async def download_report_pdf(
     screening_id: str,
     lang: str = Query("en", pattern="^(en|hi)$"),
+    state: Optional[str] = Query(None, description="Optional patient state for referral lookup"),
+    district: Optional[str] = Query(None, description="Optional patient district for referral lookup"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
@@ -209,10 +211,21 @@ async def download_report_pdf(
     if unreviewed_flag:
         result_json["unreviewed_translation"] = True
 
+    # Check for referral directory lookup if district provided
+    facilities = []
+    is_referable = str(result_json.get("referral", "")).upper() in ("REFER", "REFERABLE", "UNCERTAIN") or result_json.get("is_uncertain", False)
+    if district and is_referable:
+        try:
+            from retinaguard.api.referral import get_referral_facilities
+            facilities = get_referral_facilities(state=state, district=district)
+        except Exception as exc:
+            logger.warning("Could not load referral facilities for PDF: %s", exc)
+
     pdf_bytes = _pdf_service.generate(
         screening_id=screening.id,
         result_json=result_json,
         language=lang,
+        facilities=facilities,
     )
 
     filename = f"retinaguard_report_{screening.id[:8]}.pdf"

@@ -14,6 +14,9 @@ from sqlalchemy import select
 
 from retinaguard import __version__
 from retinaguard.api.auth import limiter, router as auth_router
+from retinaguard.api.config_endpoints import router as config_router
+from retinaguard.api.model_serve import router as model_router, sync_router
+from retinaguard.api.referral import router as referral_router
 from retinaguard.api.screen import router as screen_router
 from retinaguard.api.screenings import router as screenings_router
 from retinaguard.api.voice import router as voice_router
@@ -136,12 +139,20 @@ app.include_router(screen_router)
 app.include_router(auth_router)
 app.include_router(screenings_router)
 app.include_router(voice_router)
+app.include_router(config_router)
+app.include_router(referral_router)
+app.include_router(model_router)
+app.include_router(sync_router)
 
 # v1 prefixed routes
 app.include_router(screen_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(screenings_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
+app.include_router(config_router, prefix="/api/v1")
+app.include_router(referral_router, prefix="/api/v1")
+app.include_router(model_router, prefix="/api/v1")
+app.include_router(sync_router, prefix="/api/v1")
 
 
 @app.get("/")

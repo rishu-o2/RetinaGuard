@@ -66,3 +66,6 @@ class ScreeningAgentState(TypedDict, total=False):
     # 9. Final Assembled Result
     final_result: Optional[ScreeningResult]
     error: Optional[str]
+
+    # 10. Trace (populated by each agent; no patient data, no image data)
+    trace: list[dict]  # [{agent, status, duration_ms, note}, ...]
