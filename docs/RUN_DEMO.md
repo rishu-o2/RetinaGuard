@@ -16,6 +16,9 @@
 
 ## 2. Environment Setup
 
+> [!IMPORTANT]
+> **Demos need `ALLOW_UNREVIEWED_LOCALES=true`** in `.env`. By default (`ALLOW_UNREVIEWED_LOCALES=false`), all unreviewed language locales are strictly rejected by the backend and omitted from the frontend language switch to protect patients from unverified machine translation. For local demonstrations, set `ALLOW_UNREVIEWED_LOCALES=true` to permit English (`en`) and Hindi (`hi`), which will display a visible "unreviewed translation" note on the result card and PDF reports.
+
 1. Copy the environment template:
    ```bash
    cp .env.example .env

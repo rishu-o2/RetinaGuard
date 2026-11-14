@@ -394,3 +394,23 @@ async def test_e2e_voice_tier2_edge_tts_deterministic():
                     assert resp.content == mock_edge_audio
                     assert mock_sarvam.called
                     assert mock_edge.called
+
+
+@pytest.mark.asyncio
+async def test_e2e_voice_tier3_browser_fallback_deterministic():
+    """Verify Tier 3 (Browser Web Speech API fallback) returns HTTP 503 when Sarvam and Edge-TTS fail."""
+    from unittest.mock import AsyncMock, patch
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        with patch("retinaguard.services.voice_provider.SarvamVoiceProvider.synthesize", new_callable=AsyncMock) as mock_sarvam:
+            mock_sarvam.side_effect = Exception("Sarvam network unreachable")
+            with patch("retinaguard.services.voice_provider.EdgeTTSVoiceProvider.synthesize", new_callable=AsyncMock) as mock_edge:
+                mock_edge.side_effect = Exception("Edge-TTS connection reset")
+                resp = await client.post(
+                    "/voice",
+                    json={"text": "Review recommended.", "language": "en"},
+                )
+                assert resp.status_code == 503
+                data = resp.json()
+                assert data["fallback"] == "browser_speech"
+                assert "browser" in data["message"].lower()

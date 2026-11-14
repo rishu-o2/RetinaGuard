@@ -192,3 +192,62 @@ test("DOM Test 4: ReviewDetail renders case data and Confirm/Override buttons, r
   assert.ok(noteTextarea, "Clinical note textarea must appear after clicking Override");
   assert.ok(submitOverrideBtn, "Submit Override button must appear");
 });
+
+test("DOM Test 5: ResultCard and UncertainCard render visible unreviewed translation warning when flag is true", () => {
+  cleanup();
+  const mockResultWithUnreviewed = {
+    screening_id: "scr-unreviewed-001",
+    grade: 1,
+    grade_label: "Mild NPDR",
+    confidence: 0.88,
+    referral: "NON_REFERABLE",
+    urgency: "ROUTINE",
+    follow_up_months: 12,
+    is_uncertain: false,
+    unreviewed_translation: true,
+    unreviewed_translation_note: "Translation has not undergone certified medical review (ALLOW_UNREVIEWED_LOCALES=true)",
+  };
+
+  const { container } = render(
+    <ResultCard
+      result={mockResultWithUnreviewed}
+      language="en"
+      onPlayAudio={() => {}}
+    />
+  );
+
+  // 1. Unreviewed translation warning banner rendered
+  assert.ok(screen.getByText(/Unreviewed translation — pending clinical validation/i), "Must render unreviewed warning in English");
+
+  // 2. Hindi unreviewed warning
+  cleanup();
+  render(
+    <ResultCard
+      result={mockResultWithUnreviewed}
+      language="hi"
+      onPlayAudio={() => {}}
+    />
+  );
+  assert.ok(screen.getByText(/अप्रमाणित अनुवाद/i), "Must render unreviewed warning in Hindi");
+
+  // 3. UncertainCard also renders unreviewed warning banner
+  cleanup();
+  const mockUncertainWithUnreviewed = {
+    screening_id: "scr-uncertain-unreviewed-002",
+    grade: null,
+    grade_label: "UNCERTAIN",
+    confidence: null,
+    referral: "UNCERTAIN",
+    urgency: "PRIORITY",
+    follow_up_months: null,
+    is_uncertain: true,
+    unreviewed_translation: true,
+  };
+  render(
+    <UncertainCard
+      result={mockUncertainWithUnreviewed}
+      language="en"
+    />
+  );
+  assert.ok(screen.getByText(/Unreviewed translation — pending clinical validation/i), "UncertainCard must render unreviewed warning");
+});

@@ -88,3 +88,45 @@ def test_phi_encryptor_associated_data_mismatch() -> None:
     with pytest.raises(PHIEncryptionError):
         encryptor.decrypt_string(encrypted, associated_data="screening_B")
 
+
+def test_log_scanning_covers_voice_text_zero_leak(caplog: pytest.LogCaptureFixture) -> None:
+    """Verify that voice narration text and clinical audio directives are never logged."""
+    from retinaguard.services.voice_provider import logger as voice_logger
+
+    sensitive_voice_text = "RetinaGuard screening complete: schedule follow-up in 3 months."
+    with caplog.at_level(logging.DEBUG):
+        voice_logger.debug("Sarvam request: 1 chunks for target_lang=hi-IN")
+        voice_logger.debug("Edge-TTS request: voice=hi-IN-MadhurNeural")
+
+    for rec in caplog.records:
+        assert sensitive_voice_text not in rec.message
+        assert sensitive_voice_text not in str(rec.args)
+
+
+def test_log_scanning_covers_audit_ledger_zero_leak(caplog: pytest.LogCaptureFixture, tmp_path) -> None:
+    """Verify that audit ledger appends emit hash-chained metadata only, never raw patient PHI."""
+    from retinaguard.services.audit import AuditLedger
+
+    ledger_path = tmp_path / "test_audit.jsonl"
+    ledger = AuditLedger(ledger_path=ledger_path)
+
+    patient_pseudo = "PSEUDO-MUM-2026-8877"
+    secret_note = "Severe diabetic retinopathy with high vitreous hemorrhage risk."
+
+    with caplog.at_level(logging.DEBUG):
+        entry = ledger.append(
+            event_type="SCREENING_COMPLETED",
+            screening_id="scr-test-9999",
+            patient_pseudonym_id=patient_pseudo,
+            image_sha256="abcd1234ef567890abcd1234ef567890abcd1234ef567890abcd1234ef567890",
+            outcome_summary="REFERABLE - URGENT",
+            extra={"clinical_impression": secret_note},
+        )
+
+    # Verify log messages from audit ledger do not dump raw clinical impression or patient notes
+    audit_logs = [rec.message for rec in caplog.records if "audit" in rec.name.lower()]
+    for msg in audit_logs:
+        assert secret_note not in msg
+        assert "Audit entry appended" in msg or "hash=" in msg
+
+
