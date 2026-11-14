@@ -350,3 +350,146 @@ True 4:               0            0           12           16           17
 | OOD Statistics | `models/ood_stats_v1.npz` |
 | Model Registry | `models/registry.json` |
 | ONNX Export | `ml/exports/retinaguard_dr_v1.onnx` |
+| v1 vs v2 Comparison JSON | `ml/evaluation/comparison_v1_v2/comparison_v1_v2.json` |
+
+---
+
+## 14. v2 (robust augmentation): evaluated, not promoted
+
+> [!NOTE]
+> **Status**: Evaluated and committed (`ml/scripts/compare_v1_v2.py`, commit `9472995`).
+> **Decision**: Not promoted. **Model `v1` remains the active model** in `models/registry.json`.
+
+A robustly trained checkpoint (`ml/runs/robust_cpu_b0_256/best.pt`, Epoch 20) with camera-invariance augmentations (color jitter, blur, zoom, gamma adjustments) was evaluated as candidate version `v2` without modifying any `v1` artifact, threshold, or registry entry.
+
+An operating-point-free and pipeline-level comparison was performed across the APTOS Validation split ($N=559$), IDRiD All ($N=516$), and IDRiD Official Test ($N=103$). All metrics reported below are directly measured numbers from `compare_v1_v2.py` (with 1,000-resample bootstrap 95% confidence intervals).
+
+### A. Operating-Point-Free Comparison (Referable ROC-AUC & Matched Points)
+
+#### 1. In-Domain APTOS VAL ($N = 559$, 223 Referable, 336 Non-Referable)
+- **Referable ROC-AUC**:
+  - Model v1: **0.9890** [0.9826, 0.9940]
+  - Model v2: **0.9865** [0.9786, 0.9926]
+  - Paired difference $\Delta$ (v2 − v1): **−0.0025** [−0.0088, +0.0028] (CI crosses 0; difference is not statistically significant)
+- **Sensitivity @ Matched Specificity**:
+  - @ Specificity = 0.80: v1 = **1.0000** [1.0000, 1.0000], v2 = **1.0000** [1.0000, 1.0000]
+  - @ Specificity = 0.90: v1 = **0.9776** [0.9488, 1.0000], v2 = **0.9821** [0.9417, 1.0000]
+- **Specificity @ Matched Sensitivity**:
+  - @ Sensitivity = 0.90: v1 = **0.9643** [0.9395, 0.9874], v2 = **0.9643** [0.9326, 0.9799]
+  - @ Sensitivity = 0.95: v1 = **0.9524** [0.8969, 0.9732], v2 = **0.9315** [0.8929, 0.9660]
+
+#### 2. External Benchmark: IDRiD All ($N = 516$, 323 Referable, 193 Non-Referable)
+- **Referable ROC-AUC**:
+  - Model v1: **0.9396** [0.9197, 0.9570]
+  - Model v2: **0.9270** [0.9041, 0.9462]
+  - Paired difference $\Delta$ (v2 − v1): **−0.0126** [−0.0265, +0.0022] (CI crosses 0)
+- **Sensitivity @ Matched Specificity**:
+  - @ Specificity = 0.80: v1 = **0.8978** [0.8600, 0.9385], v2 = **0.8762** [0.8217, 0.9152]
+  - @ Specificity = 0.90: v1 = **0.8483** [0.7714, 0.8900], v2 = **0.8080** [0.7605, 0.8616]
+- **Specificity @ Matched Sensitivity**:
+  - @ Sensitivity = 0.90: v1 = **0.7979** [0.7050, 0.8867], v2 = **0.7513** [0.6138, 0.8351]
+  - @ Sensitivity = 0.95: v1 = **0.5855** [0.4793, 0.7578], v2 = **0.4767** [0.3711, 0.6802]
+
+#### 3. External Benchmark: IDRiD Official Test Split ($N = 103$, 64 Referable, 39 Non-Referable)
+- **Referable ROC-AUC**:
+  - Model v1: **0.8886** [0.8202, 0.9469]
+  - Model v2: **0.8558** [0.7822, 0.9249]
+  - Paired difference $\Delta$ (v2 − v1): **−0.0329** [−0.0812, +0.0091]
+- **Sensitivity @ Matched Specificity**:
+  - @ Specificity = 0.80: v1 = **0.7969** [0.6769, 0.9091], v2 = **0.7969** [0.6764, 0.8871]
+  - @ Specificity = 0.90: v1 = **0.7188** [0.5538, 0.8750], v2 = **0.7344** [0.6229, 0.8621]
+- **Specificity @ Matched Sensitivity**:
+  - @ Sensitivity = 0.90: v1 = **0.5385** [0.2703, 0.8183], v2 = **0.3846** [0.0555, 0.7255]
+  - @ Specificity = 0.95: v1 = **0.3846** [0.2272, 0.6906], v2 = **0.1282** [0.0286, 0.5111]
+
+---
+
+### B. IDRiD (All 516): 5x5 Confusion Matrices and Direction of Extra Referable Calls
+
+#### Model v1 Confusion Matrix & Recall
+```
+               Pred 0   Pred 1   Pred 2   Pred 3   Pred 4    Recall
+True Grade 0: [  104       56        5        2        1 ]   61.90%  (104/168)
+True Grade 1: [    7       18        0        0        0 ]   72.00%  (18/25)
+True Grade 2: [   10       61       86       10        1 ]   51.19%  (86/168)
+True Grade 3: [    1        6       50       30        6 ]   32.26%  (30/93)
+True Grade 4: [    0        3       16       19       24 ]   38.71%  (24/62)
+```
+
+#### Model v2 Confusion Matrix & Recall
+```
+               Pred 0   Pred 1   Pred 2   Pred 3   Pred 4    Recall
+True Grade 0: [   65       67       34        1        1 ]   38.69%  (65/168)
+True Grade 1: [    6       16        3        0        0 ]   64.00%  (16/25)
+True Grade 2: [    4       28      131        5        0 ]   77.98%  (131/168)
+True Grade 3: [    0        2       69       18        4 ]   19.35%  (18/93)
+True Grade 4: [    0        1       27       25        9 ]   14.52%  (9/62)
+```
+
+#### Breakdown of Extra Referable Calls
+- **True Grade 0 predicted as Referable ($\ge 2$)**:
+  - Model v1: **8 / 168** (4.76%)
+  - Model v2: **36 / 168** (21.43%) — **+28 false positives**
+- **True Grade 1 predicted as Referable ($\ge 2$)**:
+  - Model v1: **0 / 25** (0.00%)
+  - Model v2: **3 / 25** (12.00%) — **+3 false positives**
+- **Total False Referable Calls on Grade 0–1**:
+  - Model v1: **8 / 193** (4.15%)
+  - Model v2: **39 / 193** (20.21%) — **+31 net false positives** (near 5-fold increase)
+- **True Referable Cases Correctly Identified (Grade 2–4 predicted $\ge 2$)**:
+  - Model v1: **242 / 323** (74.92%)
+  - Model v2: **288 / 323** (89.16%) — **+46 additional true referable cases captured**
+
+---
+
+### C. Tier Loads and Over-Triage Rates
+
+*Tiers evaluated at $P(\text{Grade} \ge 3) \ge 0.05$ (SOON) and $P(\text{Grade} \ge 3) \ge 0.30$ (URGENT):*
+
+| Cohort | Metric | Model v1 | Model v2 |
+|---|---|---|---|
+| **APTOS VAL ($N=559$)** | Share Escalated @ SOON | 36.1% (202/559) | 38.1% (213/559) |
+| | Share Escalated @ URGENT | 22.9% (128/559) | 20.8% (116/559) |
+| | Grade $\ge 3$ Sensitivity @ SOON | **97.3%** (73/75) | **96.0%** (72/75) |
+| | Grade $\ge 3$ Sensitivity @ URGENT | **90.7%** (68/75) | **90.7%** (68/75) |
+| | Over-Triage @ SOON (Grade 0–1 escalated) | **5.7%** (19/336) | **7.1%** (24/336) |
+| | Over-Triage @ URGENT (Grade 0–1 escalated) | **0.3%** (1/336) | **0.9%** (3/336) |
+| **IDRiD All ($N=516$)** | Share Escalated @ SOON | 45.2% (233/516) | 57.9% (299/516) |
+| | Share Escalated @ URGENT | 28.5% (147/516) | 24.6% (127/516) |
+| | Grade $\ge 3$ Sensitivity @ SOON | **89.0%** (138/155) | **95.5%** (148/155) |
+| | Grade $\ge 3$ Sensitivity @ URGENT | **69.7%** (108/155) | **61.3%** (95/155) |
+| | Over-Triage @ SOON (Grade 0–1 escalated) | **7.8%** (15/193) | **25.4%** (49/193) |
+| | Over-Triage @ URGENT (Grade 0–1 escalated) | **2.1%** (4/193) | **3.6%** (7/193) |
+| **IDRiD Test ($N=103$)** | Share Escalated @ SOON | 47.6% (49/103) | 63.1% (65/103) |
+| | Share Escalated @ URGENT | 25.2% (26/103) | 21.4% (22/103) |
+| | Grade $\ge 3$ Sensitivity @ SOON | **87.5%** (28/32) | **96.9%** (31/32) |
+| | Grade $\ge 3$ Sensitivity @ URGENT | **62.5%** (20/32) | **50.0%** (16/32) |
+| | Over-Triage @ SOON (Grade 0–1 escalated) | **15.4%** (6/39) | **35.9%** (14/39) |
+| | Over-Triage @ URGENT (Grade 0–1 escalated) | **0.0%** (0/39) | **2.6%** (1/39) |
+
+---
+
+### D. Explanation of v1 IDRiD Discrepancies and Code Path Reconciliation
+
+During early evaluation scripts, two metrics for model v1 on IDRiD All showed apparent numerical differences between reporting scripts:
+1. **Retained Referable Sensitivity: `0.7378` vs `0.7456`**:
+   - **Original Pipeline Path (`0.7456`)**: Applied the frontend Quality Gate filter (where 7 poor illumination/focus images failed, leaving 509 images) and evaluated clinical abstention with the safety override `((0.30 <= p_ref <= 0.70) | ((p_ref >= 0.30) & (y_pred == 0)))`. On the retained cases ($N=468$, 283 true referable), referable decisions were determined by the model's categorical grade prediction: $\hat{y} \ge 2$. This yielded $211 / 283 = \mathbf{0.7456}$.
+   - **Shortcut Path (`0.7378`)**: Evaluated raw images without the Quality Gate ($N=516$), evaluated abstention only as `0.30 <= p_ref <= 0.70` without the safety override, and evaluated referable strictly as $P(\text{ref}) > 0.70$ rather than $\hat{y} \ge 2$. This yielded $211 / 286 = \mathbf{0.7378}$.
+2. **Grade $\ge 3$ Sensitivity at SOON: `0.9091` vs `0.8903`**:
+   - **Original Pipeline Path (`0.8903`)**: Evaluated the escalation tier over the entire cohort of true Grade $\ge 3$ cases ($N=155$). With 138 cases escalated at $P(\text{Grade} \ge 3) \ge 0.05$, sensitivity is $138 / 155 = \mathbf{0.8903}$.
+   - **Shortcut Path (`0.9091`)**: Evaluated sensitivity solely on the retained subset, inadvertently excluding the 12 Grade $\ge 3$ cases that landed in the abstention band. The denominator shrank to 143, yielding $130 / 143 = \mathbf{0.9091}$.
+
+*Reconciliation*: `ml/scripts/compare_v1_v2.py` now runs both the exact end-to-end clinical pipeline path and the standalone cohort path side-by-side, explicitly labeling denominators.
+
+---
+
+### E. Clinical Takeaway and Promotion Decision
+
+**Plain Summary of Findings**:
+1. **No Operating-Point-Free Advantage**: Model v2 exhibits essentially identical ROC-AUC to v1 on in-domain VAL ($0.9865$ vs $0.9890$, $\Delta = -0.0025$, 95% CI: [−0.0088, +0.0028]) and slightly lower ROC-AUC on IDRiD All ($0.9270$ vs $0.9396$, $\Delta = -0.0126$, 95% CI: [−0.0265, +0.0022]).
+2. **Aggressive Upward Shift Rather Than Better Discrimination**: While v2 increases raw referable recall on IDRiD (referable sensitivity rises from 74.9% to 89.2% due to Grade 2 recall jumping from 51.2% to 78.0%), this gain is achieved via an upward calibration shift rather than superior lesion discrimination.
+3. **Severe Over-Triage Burden**: As a direct consequence of this shift, v2 incurs a near 5-fold increase in false positives on IDRiD Grade 0–1 (rising from 4.15% to 20.21%). At the SOON escalation tier, over-triage of non-referable eyes surges from 7.77% to 25.39%, causing 57.9% of all screened patients on IDRiD to be escalated. In a resource-constrained rural Indian PHC, this volume of false escalations would overwhelm tertiary ophthalmology referral pathways.
+
+**Decision**:
+Model **v2 is NOT promoted**. **Model `v1` remains the active model** in `models/registry.json`. No thresholds, abstention bands, or active endpoints have been changed.
+
