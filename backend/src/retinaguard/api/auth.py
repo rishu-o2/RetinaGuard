@@ -105,10 +105,17 @@ async def login(
 
 
 @router.get("/config")
-def get_auth_config() -> dict[str, bool]:
-    """Return public authentication configuration."""
+def get_auth_config() -> dict[str, Any]:
+    """Return public authentication and locale configuration."""
     import os
+    from retinaguard.core.config import get_allowed_locales
+
     allow_anon = os.environ.get("ALLOW_ANONYMOUS_SCREENING", "false").lower() in ("true", "1", "yes")
-    return {"allow_anonymous_screening": allow_anon}
+    allow_unreviewed = os.environ.get("ALLOW_UNREVIEWED_LOCALES", "false").lower() in ("true", "1", "yes")
+    return {
+        "allow_anonymous_screening": allow_anon,
+        "allow_unreviewed_locales": allow_unreviewed,
+        "allowed_locales": get_allowed_locales(),
+    }
 
 

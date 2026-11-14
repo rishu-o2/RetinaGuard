@@ -2,6 +2,8 @@
   "language": "kn",
   "language_name": "Kannada (ಕನ್ನಡ)",
   "reviewed": false,
+  "reviewed_by": null,
+  "reviewed_on": null,
   "grades": {
     "0": "No Apparent Diabetic Retinopathy",
     "1": "Mild Non-Proliferative Diabetic Retinopathy",

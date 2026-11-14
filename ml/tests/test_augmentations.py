@@ -213,3 +213,4 @@ def test_geometric_flips_and_rotations(synthetic_retina):
     )
     flipped = aug(synthetic_retina)
     assert np.array_equal(flipped, np.fliplr(synthetic_retina))
+

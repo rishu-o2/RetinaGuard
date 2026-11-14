@@ -153,3 +153,75 @@ def load_quality_thresholds(config_path: Path | str | None = None) -> QualityThr
         data = yaml.safe_load(f)
 
     return QualityThresholdsConfig.model_validate(data)
+
+
+# ---------------------------------------------------------------------------
+# Locales & Clinical Translation Review Helpers
+# ---------------------------------------------------------------------------
+
+
+def is_locale_reviewed(lang: str) -> bool:
+    """Check if a locale file has been explicitly reviewed and signed off by a human."""
+    locale_file = _find_repo_root() / "configs" / "locales" / f"{lang.lower().strip()}.json"
+    if not locale_file.exists():
+        return False
+    try:
+        import json
+        data = json.loads(locale_file.read_text(encoding="utf-8"))
+        return bool(
+            data.get("reviewed") is True
+            and data.get("reviewed_by")
+            and data.get("reviewed_on")
+        )
+    except Exception:
+        return False
+
+
+def is_locale_allowed(lang: str) -> tuple[bool, bool]:
+    """Determine whether a locale is allowed and whether it requires an unreviewed banner.
+
+    Returns:
+        (is_allowed: bool, is_unreviewed_translation: bool)
+    """
+    import os
+    lang_clean = lang.lower().strip()
+    reviewed = is_locale_reviewed(lang_clean)
+    if reviewed:
+        return True, False
+
+    allow_unreviewed = os.environ.get("ALLOW_UNREVIEWED_LOCALES", "false").lower() in ("true", "1", "yes")
+    if allow_unreviewed and lang_clean in ("en", "hi"):
+        return True, True
+
+    return False, False
+
+
+def get_allowed_locales() -> list[dict[str, Any]]:
+    """Return list of allowed locale descriptors based on review status and ALLOW_UNREVIEWED_LOCALES."""
+    import json
+    import os
+    allow_unreviewed = os.environ.get("ALLOW_UNREVIEWED_LOCALES", "false").lower() in ("true", "1", "yes")
+    locales_dir = _find_repo_root() / "configs" / "locales"
+    results = []
+
+    if not locales_dir.exists():
+        return results
+
+    for p in sorted(locales_dir.glob("*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            code = data.get("language", p.stem)
+            name = data.get("language_name", code)
+            reviewed = bool(
+                data.get("reviewed") is True
+                and data.get("reviewed_by")
+                and data.get("reviewed_on")
+            )
+            if reviewed:
+                results.append({"code": code, "name": name, "reviewed": True})
+            elif allow_unreviewed and code in ("en", "hi"):
+                results.append({"code": code, "name": name, "reviewed": False, "unreviewed": True})
+        except Exception:
+            continue
+
+    return results

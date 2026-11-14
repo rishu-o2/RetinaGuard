@@ -2,8 +2,9 @@
 
 import os
 
-# Default to allowing anonymous screening for unit/integration tests that don't pass headers
+# Default to allowing anonymous screening and unreviewed demo locales for test suites
 os.environ.setdefault("ALLOW_ANONYMOUS_SCREENING", "true")
+os.environ.setdefault("ALLOW_UNREVIEWED_LOCALES", "true")
 
 import pytest
 from retinaguard.core.consent import ConsentPurpose, DPDPProcessingConsent

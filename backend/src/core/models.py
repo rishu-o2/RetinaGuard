@@ -1,10 +1,3 @@
-"""Domain models and schemas for RetinaGuard.
-
-All clinical decision attributes follow the ICDR scale (0-4), AIOS, and RSSDI
-guidelines. Patient models support future ABDM/ABHA integration while enforcing
-DPDP Act 2023 consent validation.
-"""
-
 from datetime import datetime, timezone
 from enum import Enum, IntEnum
 import re
@@ -16,7 +9,6 @@ from retinaguard.core.consent import DPDPProcessingConsent
 
 
 class ICDRGrade(IntEnum):
-    """International Clinical Diabetic Retinopathy Scale."""
     NO_DR = 0
     MILD_NPDR = 1
     MODERATE_NPDR = 2
@@ -25,14 +17,12 @@ class ICDRGrade(IntEnum):
 
 
 class ReferralDecision(str, Enum):
-    """Referral recommendation generated deterministically by the rules engine."""
     NON_REFERABLE = "NON_REFERABLE"
     REFERABLE = "REFERABLE"
     UNCERTAIN = "UNCERTAIN"
 
 
 class Urgency(str, Enum):
-    """Clinical urgency tiers mapped according to AIOS/RSSDI guidelines."""
     ROUTINE = "ROUTINE"
     SOON = "SOON"
     PRIORITY = "PRIORITY"
@@ -61,11 +51,6 @@ class DiabetesType(str, Enum):
 
 
 class PatientContext(BaseModel):
-    """Patient clinical context accompanying the retinal image.
-
-    Contains metabolic variables impacting progression rate (e.g. HbA1c, pregnancy).
-    ABHA fields are prepared for future ABDM connectivity but optional.
-    """
     patient_pseudonym_id: str = Field(
         ...,
         description="Pseudonymized or anonymized internal ID (never raw Aadhaar, phone, or name)",

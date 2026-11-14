@@ -270,18 +270,19 @@ async def test_e2e_three_image_smoke():
                     shutil.copy2(png_path, artifact_dir / png_path.name)
             doc_hi.close()
 
-            # 5f. Call /voice and verify response (Edge-TTS tier audio 200 or browser fallback 503)
+            # 5f. Call /voice: deterministic test with mocked voice synthesis (no real network calls)
             voice_text = s_result.get("voice_text") or "Screening assessment completed."
-            voice_resp = await client.post(
-                "/voice",
-                json={"text": voice_text, "language": "en"},
-            )
-            assert voice_resp.status_code in (200, 503)
-            if voice_resp.status_code == 200:
-                assert len(voice_resp.content) > 100
-            else:
-                voice_data = voice_resp.json()
-                assert voice_data.get("fallback") == "browser_speech"
+            mock_wav_bytes = _make_synthetic_fundus_png(size=128)  # Valid bytes for response
+            from unittest.mock import AsyncMock, patch
+            with patch("retinaguard.services.voice_provider.ResilientVoiceProvider.synthesize", new_callable=AsyncMock) as mock_synth:
+                mock_synth.return_value = mock_wav_bytes
+                voice_resp = await client.post(
+                    "/voice",
+                    json={"text": voice_text, "language": "en"},
+                )
+                assert voice_resp.status_code == 200
+                assert voice_resp.headers["content-type"] == "audio/wav"
+                assert voice_resp.content == mock_wav_bytes
 
         # Step 6: Verify audit chain integrity across all created events
         audit_resp = await client.get("/screen/audit/verify")
@@ -350,3 +351,46 @@ async def test_uncertain_routing_e2e():
         assert matching[0]["is_uncertain"] is True
         assert matching[0]["flag"] == "needs recapture or review"
         print("[PASS] Uncertain screening successfully routed to clinician queue with flag='needs recapture or review'")
+
+
+@pytest.mark.asyncio
+async def test_e2e_voice_tier1_sarvam_deterministic():
+    """Verify Tier 1 (Sarvam Bulbul:v3) returns HTTP 200 with audio deterministically when mocked."""
+    from unittest.mock import AsyncMock, patch
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        mock_sarvam_wav = b"RIFF_SARVAM_MOCKED_WAV_BYTES_0123456789"
+        with patch("retinaguard.services.voice_provider.SarvamVoiceProvider.synthesize", new_callable=AsyncMock) as mock_sarvam:
+            mock_sarvam.return_value = mock_sarvam_wav
+            with patch.dict(os.environ, {"SARVAM_API_KEY": "mock_sarvam_key"}):
+                resp = await client.post(
+                    "/voice",
+                    json={"text": "Annual review scheduled within twelve months.", "language": "en"},
+                )
+                assert resp.status_code == 200
+                assert resp.headers["content-type"] == "audio/wav"
+                assert resp.content == mock_sarvam_wav
+                assert mock_sarvam.called
+
+
+@pytest.mark.asyncio
+async def test_e2e_voice_tier2_edge_tts_deterministic():
+    """Verify Tier 2 (Edge-TTS) returns HTTP 200 with audio when Sarvam fails or is unconfigured."""
+    from unittest.mock import AsyncMock, patch
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        mock_edge_audio = b"RIFF_EDGE_TTS_MOCKED_AUDIO_9876543210"
+        with patch("retinaguard.services.voice_provider.SarvamVoiceProvider.synthesize", new_callable=AsyncMock) as mock_sarvam:
+            mock_sarvam.side_effect = Exception("Sarvam HTTP 503 Provider Unavailable")
+            with patch("retinaguard.services.voice_provider.EdgeTTSVoiceProvider.synthesize", new_callable=AsyncMock) as mock_edge:
+                mock_edge.return_value = mock_edge_audio
+                with patch.dict(os.environ, {"SARVAM_API_KEY": "mock_sarvam_key"}):
+                    resp = await client.post(
+                        "/voice",
+                        json={"text": "Referral to retina specialist recommended within three months.", "language": "en"},
+                    )
+                    assert resp.status_code == 200
+                    assert resp.headers["content-type"] == "audio/wav"
+                    assert resp.content == mock_edge_audio
+                    assert mock_sarvam.called
+                    assert mock_edge.called

@@ -40,6 +40,10 @@
    # Local screening access: false requires Bearer JWT token; true allows guest screener button
    ALLOW_ANONYMOUS_SCREENING=false
 
+   # Language review policy: false rejects unreviewed translations (clinical production mode);
+   # MUST be set to true for local demos to allow en and hi with unreviewed disclaimer note
+   ALLOW_UNREVIEWED_LOCALES=true
+
    # Voice synthesis (optional — falls back to browser Web Speech API if empty)
    SARVAM_API_KEY=
    ```

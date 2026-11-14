@@ -25,6 +25,8 @@ interface ScreeningResponse {
   guideline_explanation?: string | null;
   guideline_citations?: string[];
   guideline_source_note?: string | null;
+  unreviewed_translation?: boolean;
+  unreviewed_translation_note?: string | null;
 }
 
 // ─── Grade colour helpers ─────────────────────────────────────────────────────
@@ -61,6 +63,15 @@ export function UncertainCard({
           ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
           : "⚠️ Prototype, not clinically validated"}
       </div>
+
+      {/* Unreviewed Translation Warning */}
+      {result.unreviewed_translation && (
+        <div className="rounded border-2 border-amber-400 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 tracking-wide text-center uppercase">
+          {language === "hi"
+            ? "⚠️ अप्रमाणित अनुवाद — नैदानिक समीक्षा लंबित (Unreviewed translation)"
+            : "⚠️ Unreviewed translation — pending clinical validation"}
+        </div>
+      )}
 
       <div className="flex items-center space-x-3">
         <span className="text-3xl">⚠️</span>
@@ -122,6 +133,15 @@ export function ResultCard({
           ? "⚠️ प्रोटोटाइप — चिकित्सकीय रूप से प्रमाणित नहीं (Prototype, not clinically validated)"
           : "⚠️ Prototype, not clinically validated"}
       </div>
+
+      {/* Unreviewed Translation Warning */}
+      {result.unreviewed_translation && (
+        <div className="rounded border-2 border-amber-400 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 tracking-wide text-center uppercase">
+          {language === "hi"
+            ? "⚠️ अप्रमाणित अनुवाद — नैदानिक समीक्षा लंबित (Unreviewed translation)"
+            : "⚠️ Unreviewed translation — pending clinical validation"}
+        </div>
+      )}
 
       {/* Grade + Referral row */}
       <div className="flex flex-wrap items-center gap-3">
@@ -257,6 +277,26 @@ export function App() {
     const r = localStorage.getItem("retinaguard_role");
     return r === "clinician" || r === "admin" ? "queue" : "screen";
   });
+
+  // Allowed locales fetched from backend policy
+  const [availableLocales, setAvailableLocales] = useState<Array<{ code: string; name: string; unreviewed?: boolean }>>([
+    { code: "en", name: "English (India)" },
+    { code: "hi", name: "Hindi (हिंदी)" },
+  ]);
+
+  React.useEffect(() => {
+    fetch("/auth/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.allowed_locales)) {
+          setAvailableLocales(data.allowed_locales);
+          if (data.allowed_locales.length > 0 && !data.allowed_locales.some((l: any) => l.code === language)) {
+            setLanguage(data.allowed_locales[0].code as Language);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Form state
   const [cameraType, setCameraType] = useState<CameraType>("SMARTPHONE_PORTABLE");
@@ -448,15 +488,22 @@ export function App() {
               </div>
             )}
 
-            {/* Language switch — en / hi (हिंदी) */}
+            {/* Language switch */}
             <select
               aria-label="Select Language"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
               className="bg-slate-800 text-slate-200 text-sm rounded px-3 py-1 border border-slate-700"
             >
-              <option value="en">English (India)</option>
-              <option value="hi">Hindi (हिंदी)</option>
+              {availableLocales.length > 0 ? (
+                availableLocales.map((loc) => (
+                  <option key={loc.code} value={loc.code}>
+                    {loc.name} {loc.unreviewed ? "⚠️ (Unreviewed translation)" : ""}
+                  </option>
+                ))
+              ) : (
+                <option value="en" disabled>No reviewed languages available</option>
+              )}
             </select>
 
             {/* User badge and logout */}

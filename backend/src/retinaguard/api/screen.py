@@ -160,6 +160,19 @@ async def screen_image(
             detail="Authentication required for screening. Please log in.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check locale review requirement
+    from retinaguard.core.config import is_locale_allowed
+    allowed, unreviewed_flag = is_locale_allowed(language)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Locale '{language}' is unreviewed and not permitted in production. "
+                "Only clinical translations signed off by a licensed clinician are permitted. "
+                "(Set ALLOW_UNREVIEWED_LOCALES=true for local demonstration environments only)."
+            ),
+        )
     # ── 1. Read & hash ────────────────────────────────────────────────────
     raw_bytes = await image.read()
     if len(raw_bytes) == 0:
@@ -217,6 +230,13 @@ async def screen_image(
     payload["guideline_explanation"] = result.guideline_explanation
     payload["guideline_citations"] = result.guideline_citations
     payload["guideline_source_note"] = result.guideline_source_note
+    payload["unreviewed_translation"] = unreviewed_flag
+    if unreviewed_flag:
+        payload["unreviewed_translation_note"] = (
+            "Unreviewed translation — pending clinical validation"
+            if language == "en"
+            else "अप्रमाणित अनुवाद — नैदानिक समीक्षा लंबित"
+        )
 
     # ── Persist to Screening Database (as pending review) ─────────────────
     try:

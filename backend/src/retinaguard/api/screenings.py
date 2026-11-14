@@ -190,10 +190,24 @@ async def download_report_pdf(
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
 
+    from retinaguard.core.config import is_locale_allowed
+    allowed, unreviewed_flag = is_locale_allowed(lang)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Locale '{lang}' is unreviewed and not permitted in production. "
+                "(Set ALLOW_UNREVIEWED_LOCALES=true for local demonstration environments only)."
+            ),
+        )
+
     try:
         result_json = json.loads(screening.result_json)
     except Exception:
         result_json = {}
+
+    if unreviewed_flag:
+        result_json["unreviewed_translation"] = True
 
     pdf_bytes = _pdf_service.generate(
         screening_id=screening.id,

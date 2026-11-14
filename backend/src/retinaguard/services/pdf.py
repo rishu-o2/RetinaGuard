@@ -215,6 +215,38 @@ class PDFReportService:
         story.append(disclaimer_table)
         story.append(Spacer(1, 0.4 * cm))
 
+        # ── 2b. Unreviewed Translation Warning Banner ────────────────────────
+        if result_json.get("unreviewed_translation", False):
+            unreviewed_note_text = (
+                "⚠️ अप्रमाणित अनुवाद — यह अनुवाद नैदानिक रूप से सत्यापित नहीं है (Unreviewed Translation)."
+                if is_hi
+                else "⚠️ Unreviewed translation — this text has not undergone licensed clinical translation review."
+            )
+            unreviewed_style = ParagraphStyle(
+                "RGUnreviewed",
+                fontName=body_font,
+                fontSize=8.5,
+                leading=12,
+                textColor=colors.HexColor("#92400e"),
+                alignment=TA_CENTER,
+            )
+            unreviewed_para = Paragraph(unreviewed_note_text, unreviewed_style)
+            unreviewed_table = Table([[unreviewed_para]], colWidths=[doc.width])
+            unreviewed_table.setStyle(
+                TableStyle(
+                    [
+                        ("BOX", (0, 0), (-1, -1), 1.2, colors.HexColor("#f59e0b")),
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fffbeb")),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                        ("TOPPADDING", (0, 0), (-1, -1), 5),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ]
+                )
+            )
+            story.append(unreviewed_table)
+            story.append(Spacer(1, 0.3 * cm))
+
         # ── 3. Case info table ───────────────────────────────────────────────
         label_style = ParagraphStyle(
             "RGLabel",

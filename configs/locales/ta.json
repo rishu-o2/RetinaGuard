@@ -2,6 +2,8 @@
   "language": "ta",
   "language_name": "Tamil (தமிழ்)",
   "reviewed": false,
+  "reviewed_by": null,
+  "reviewed_on": null,
   "grades": {
     "0": "No Apparent Diabetic Retinopathy",
     "1": "Mild Non-Proliferative Diabetic Retinopathy",

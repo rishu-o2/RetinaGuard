@@ -1,16 +1,3 @@
-"""RetinaGuard Production Training Script.
-
-Trains EfficientNet Dual-Head on train split, validates on val split each epoch,
-and NEVER touches the test split.
-
-Features:
-- Checkpoints last.pt and best.pt (by validation QWK).
-- Full state restoration via --resume (model, optimizer, scheduler, scaler, epoch, RNG).
-- Per-epoch metrics logged to {out_dir}/metrics.csv.
-- Early stopping based on validation QWK.
-- Out-dir path flexible for local or Google Drive mounting.
-"""
-
 import argparse
 import csv
 import os

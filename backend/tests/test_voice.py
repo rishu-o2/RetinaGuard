@@ -172,3 +172,61 @@ async def test_fallback_chain_all_fail_to_browser_speech(client: AsyncClient, mo
         data = resp.json()
         assert data["fallback"] == "browser_speech"
         assert "browser" in data["message"]
+
+
+# ── 6. Zero-PHI and No Logging Tests ─────────────────────────────────────────
+
+
+def test_voice_text_generic_advice_no_phi():
+    """Verify that voice text consists only of generic clinical advice without identifiers."""
+    from retinaguard.agents.voice_agent import VoiceAgent
+    from retinaguard.core.models import EyeSide, ICDRGrade, ReferralDecision, Urgency
+
+    agent = VoiceAgent()
+    # Simulate a pipeline state with patient pseudonym and clinical data
+    mock_state = {
+        "referral_decision": MagicMock(
+            referral=ReferralDecision.REFERABLE,
+            urgency=Urgency.PRIORITY,
+            follow_up_interval_months=3,
+        ),
+        "inference_output": MagicMock(predicted_grade=ICDRGrade.MODERATE_NPDR),
+        "patient_context": MagicMock(patient_pseudonym_id="PAT-DEL-2026-9999"),
+        "image_metadata": MagicMock(
+            image_sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            eye_side=EyeSide.RIGHT_OD,
+        ),
+        "language_requested": "en",
+    }
+
+    result_state = agent(mock_state)
+    voice_text = result_state.get("voice_text", "")
+
+    assert voice_text, "Voice text must not be empty"
+    # Must NOT contain patient pseudonym ID
+    assert "PAT-DEL" not in voice_text
+    assert "9999" not in voice_text
+    # Must NOT contain image SHA-256 or hex digest
+    assert "e3b0c442" not in voice_text
+    # Must NOT contain raw internal enum strings or clinician notes
+    assert "RIGHT_OD" not in voice_text
+    # Must contain generic clinical advice
+    assert any(term in voice_text.lower() for term in ["retina", "ophthalmologist", "specialist", "months", "screening"])
+
+
+@pytest.mark.asyncio
+async def test_voice_endpoint_zero_logging(client: AsyncClient, caplog):
+    """Verify that text sent to /voice is never logged at any log level."""
+    import logging
+    caplog.set_level(logging.DEBUG)
+
+    sensitive_phrase = "UniqueClinicalAdvicePhraseXYZZY12345"
+    with patch("retinaguard.services.voice_provider.ResilientVoiceProvider.synthesize", new_callable=AsyncMock) as mock_synth:
+        mock_synth.return_value = _create_mock_wav(100)
+        resp = await client.post("/voice", json={"text": sensitive_phrase, "language": "en"})
+        assert resp.status_code == 200
+
+    # Ensure the text was NEVER logged anywhere
+    for record in caplog.records:
+        assert sensitive_phrase not in record.message
+        assert sensitive_phrase not in str(record.args)
