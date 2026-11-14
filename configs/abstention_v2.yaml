@@ -1,0 +1,35 @@
+version: 2.0.0
+note: NEEDS CLINICAL REVIEW before deployment
+model_version: v2
+policy:
+  default: referable_band_abstention
+  description: When calibrated P(referable) = P(grade>=2) falls within [lower_edge,
+    upper_edge], return UNCERTAIN. Never return confident 'no DR' when P(referable)
+    >= lower_edge.
+referable_band:
+  cutoff: 0.5
+  lower_edge: 0.25
+  upper_edge: 0.6
+  val_uncertain_rate: 0.039356
+  val_automated_rate: 0.960644
+  val_referable_automated_rate: 0.964126
+  val_retained_referable_sensitivity: 0.986047
+  val_retained_referable_specificity: 0.928571
+  val_ge3_sensitivity_at_soon_tier: !!python/object/apply:numpy._core.multiarray.scalar
+  - !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    qUpbXOOz7j8=
+  note: NEEDS CLINICAL REVIEW

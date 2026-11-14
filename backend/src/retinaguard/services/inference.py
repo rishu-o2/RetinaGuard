@@ -88,7 +88,7 @@ class ONNXInferenceService:
             )
 
     def _load_registry_metadata(self) -> None:
-        """Load temperature and image size from registry if available."""
+        """Load temperature and image size from the ACTIVE registry entry."""
         registry_path = _find_repo_root() / "models" / "registry.json"
         if registry_path.exists():
             try:
@@ -97,7 +97,10 @@ class ONNXInferenceService:
                     reg = json.load(f)
                 entries = reg.get("models", [])
                 if entries:
-                    entry = entries[0]
+                    # Prefer the entry with active=True; fall back to first entry
+                    entry = next(
+                        (m for m in entries if m.get("active", False)), entries[0]
+                    )
                     self.temperature = float(entry.get("temperature", 1.0))
                     sz = entry.get("image_size", _DEFAULT_SIZE)
                     if isinstance(sz, (list, tuple)) and len(sz) > 0:
@@ -110,7 +113,7 @@ class ONNXInferenceService:
 
     @staticmethod
     def _resolve_model_path() -> Path:
-        """Resolve ONNX model path: prefer models/registry.json entry, else legacy path."""
+        """Resolve ONNX model path: prefer active entry in registry.json."""
         repo_root = _find_repo_root()
         registry_path = repo_root / "models" / "registry.json"
         if registry_path.exists():
@@ -120,7 +123,11 @@ class ONNXInferenceService:
                     reg = json.load(f)
                 entries = reg.get("models", [])
                 if entries:
-                    onnx_rel = entries[0].get("onnx_path", "")
+                    # Prefer the entry with active=True; fall back to first entry
+                    entry = next(
+                        (m for m in entries if m.get("active", False)), entries[0]
+                    )
+                    onnx_rel = entry.get("onnx_path", "")
                     if onnx_rel and onnx_rel != "SKIPPED":
                         candidate = repo_root / onnx_rel
                         if candidate.exists():

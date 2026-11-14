@@ -34,6 +34,54 @@
           0.9037,
           0.9575
         ]
+      },
+      "active": true,
+      "version_tag": "v1"
+    },
+    {
+      "version": "v2.0.0",
+      "version_tag": "v2",
+      "active": false,
+      "epoch": 20,
+      "best_qwk_val": 0.925,
+      "checkpoint_path": "ml/runs/robust_cpu_b0_256/best.pt",
+      "onnx_path": "ml/exports/retinaguard_dr_v2.onnx",
+      "onnx_sha256": "b150d0bb7ce38100dd9a34326e2f75bf7ec8bd65c8e39d2c8dcf96dbc89e1887",
+      "config_path": "configs/robust_cpu_b0_256.yaml",
+      "image_size": [
+        256,
+        256
+      ],
+      "temperature": 1.7058,
+      "ece_before": 0.0828,
+      "ece_after": 0.0167,
+      "ood_stats_path": "models/ood_stats_v2.npz",
+      "abstention_config_path": "configs/abstention_v2.yaml",
+      "val_metrics": {
+        "qwk": 0.925,
+        "referable_sensitivity": 0.9776,
+        "referable_specificity": 0.9137,
+        "referable_auc": 0.9862,
+        "uncertain_rate": 0.0394,
+        "per_class_recall": {
+          "0": 0.9929,
+          "1": 0.4444,
+          "2": 0.9054,
+          "3": 0.3667,
+          "4": 0.4222
+        },
+        "ci_qwk_95": [
+          0.9076,
+          0.9417
+        ],
+        "ci_sens_95": [
+          0.9557,
+          0.9953
+        ],
+        "ci_spec_95": [
+          0.8799,
+          0.9399
+        ]
       }
     }
   ]

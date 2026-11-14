@@ -66,7 +66,10 @@ def verify_model_artifacts() -> None:
                 reg = json.load(f)
             entries = reg.get("models", [])
             if entries:
-                entry = entries[0]
+                # Prefer the entry with active=True; fall back to first entry
+                entry = next(
+                    (m for m in entries if m.get("active", False)), entries[0]
+                )
                 if "onnx_path" in entry:
                     onnx_path = repo_root / entry["onnx_path"]
                 if "ood_stats_path" in entry:
