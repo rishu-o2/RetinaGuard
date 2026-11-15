@@ -101,7 +101,7 @@ export function ReviewDetail({
 
   if (error && !data) {
     return (
-      <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+      <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-200">
         {error}
         <button onClick={onBack} className="block mt-2 text-sm underline">
           ← Back to Queue
@@ -113,17 +113,18 @@ export function ReviewDetail({
   const result = data?.result || {};
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 space-y-6">
       {/* Top bar */}
       <div className="flex items-center justify-between border-b pb-4">
         <div>
           <button
             onClick={onBack}
-            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold mb-1"
+            className="text-xs font-semibold mb-1 hover:underline"
+            style={{ color: "#1B7F86" }}
           >
             ← Back to Queue
           </button>
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-bold" style={{ color: "#0B3C49" }}>
             Case: {data.pseudonym_id ? data.pseudonym_id.slice(0, 16) : screeningId}…
           </h2>
           <p className="text-xs text-slate-400">
@@ -134,13 +135,13 @@ export function ReviewDetail({
         <div className="flex space-x-2">
           <button
             onClick={() => downloadPdf("en")}
-            className="border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded text-xs font-medium"
+            className="border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-medium transition"
           >
             Download PDF (EN)
           </button>
           <button
             onClick={() => downloadPdf("hi")}
-            className="border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded text-xs font-medium"
+            className="border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-medium transition"
           >
             Download PDF (HI)
           </button>
@@ -148,21 +149,21 @@ export function ReviewDetail({
       </div>
 
       {/* Prototype Banner */}
-      <div className="rounded border-2 border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase">
+      <div className="rounded-xl border-2 border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase">
         ⚠ Prototype, not clinically validated · For clinician review only
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 text-sm rounded border border-red-200">
+        <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-200">
           {error}
         </div>
       )}
 
       {/* Case Findings Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl border border-slate-200/90 bg-[#F4F7F8]">
         <div>
           <div className="text-xs text-slate-500">Predicted Grade</div>
-          <div className="text-base font-bold text-slate-900">
+          <div className="text-base font-bold" style={{ color: "#0B3C49" }}>
             {result.grade !== null && result.grade !== undefined
               ? `Grade ${result.grade}`
               : "UNCERTAIN"}
@@ -172,17 +173,21 @@ export function ReviewDetail({
 
         <div>
           <div className="text-xs text-slate-500">Urgency</div>
-          <div className="text-base font-bold text-slate-900">{result.urgency || "N/A"}</div>
+          <div className="text-base font-bold" style={{ color: "#0B3C49" }}>
+            {result.urgency || "N/A"}
+          </div>
         </div>
 
         <div>
           <div className="text-xs text-slate-500">Referral</div>
-          <div className="text-base font-bold text-slate-900">{result.referral || "N/A"}</div>
+          <div className="text-base font-bold" style={{ color: "#0B3C49" }}>
+            {result.referral || "N/A"}
+          </div>
         </div>
 
         <div>
           <div className="text-xs text-slate-500">Follow-up Interval</div>
-          <div className="text-base font-bold text-slate-900">
+          <div className="text-base font-bold" style={{ color: "#0B3C49" }}>
             {result.follow_up_interval_months
               ? `${result.follow_up_interval_months} mo.`
               : "Immediate"}
@@ -192,7 +197,7 @@ export function ReviewDetail({
 
       {/* Text report preview */}
       {result.report_text && (
-        <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-48 overflow-y-auto">
+        <div className="p-4 bg-[#F4F7F8] rounded-2xl border border-slate-200/90 text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-48 overflow-y-auto">
           {result.report_text}
         </div>
       )}
@@ -202,29 +207,49 @@ export function ReviewDetail({
 
       {/* Two Big Decision Buttons */}
       <div className="border-t pt-4 space-y-4">
-        <h3 className="text-sm font-bold text-slate-800">Clinician Action</h3>
+        <h3 className="text-sm font-bold" style={{ color: "#0B3C49" }}>
+          Clinician Action
+        </h3>
 
         {!showOverride ? (
           <div className="grid grid-cols-2 gap-4">
+            {/* Confirm button — teal */}
             <button
               onClick={handleConfirm}
               disabled={submitting}
-              className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition disabled:opacity-50 text-center"
+              className="py-3 px-4 font-bold rounded-2xl shadow-sm transition disabled:opacity-50 text-center text-white"
+              style={{ backgroundColor: "#1B7F86" }}
+              onMouseEnter={(e) => {
+                if (!submitting) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#145f65";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1B7F86";
+              }}
             >
               {submitting ? "Submitting..." : "✓ Confirm AI Assessment"}
             </button>
 
+            {/* Override button — outlined coral/orange */}
             <button
               onClick={() => setShowOverride(true)}
               disabled={submitting}
-              className="py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow transition disabled:opacity-50 text-center"
+              className="py-3 px-4 font-bold rounded-2xl transition disabled:opacity-50 text-center border-2"
+              style={{ color: "#D9622B", borderColor: "#D9622B", backgroundColor: "transparent" }}
+              onMouseEnter={(e) => {
+                if (!submitting) {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fff4f0";
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+              }}
             >
               ✗ Override Assessment
             </button>
           </div>
         ) : (
-          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 space-y-3">
-            <h4 className="text-xs font-bold text-amber-900 uppercase">Override Details</h4>
+          <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200 space-y-3">
+            <h4 className="text-xs font-bold text-orange-900 uppercase">Override Details</h4>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
                 Final Clinician Grade (0–4)
@@ -232,7 +257,7 @@ export function ReviewDetail({
               <select
                 value={overrideGrade}
                 onChange={(e) => setOverrideGrade(Number(e.target.value))}
-                className="block w-full rounded border border-slate-300 px-3 py-1.5 text-sm"
+                className="block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
               >
                 <option value={0}>0 — No Apparent DR</option>
                 <option value={1}>1 — Mild NPDR</option>
@@ -250,7 +275,7 @@ export function ReviewDetail({
                 value={overrideNote}
                 onChange={(e) => setOverrideNote(e.target.value)}
                 placeholder="Observed neovascularization not captured by model..."
-                className="block w-full rounded border border-slate-300 px-3 py-1.5 text-sm"
+                className="block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                 rows={2}
               />
             </div>
@@ -259,14 +284,21 @@ export function ReviewDetail({
               <button
                 onClick={handleOverride}
                 disabled={submitting}
-                className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow text-xs disabled:opacity-50"
+                className="py-2 px-4 font-bold rounded-xl shadow text-xs disabled:opacity-50 text-white"
+                style={{ backgroundColor: "#D9622B" }}
+                onMouseEnter={(e) => {
+                  if (!submitting) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#b84e22";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#D9622B";
+                }}
               >
                 {submitting ? "Submitting..." : "Submit Override"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowOverride(false)}
-                className="py-2 px-3 border border-slate-300 rounded text-xs text-slate-700 hover:bg-slate-100"
+                className="py-2 px-3 border border-slate-300 rounded-lg text-xs text-slate-700 hover:bg-slate-100 transition"
               >
                 Cancel
               </button>
@@ -277,4 +309,3 @@ export function ReviewDetail({
     </div>
   );
 }
-

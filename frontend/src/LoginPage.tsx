@@ -57,7 +57,6 @@ export function LoginPage({ onLogin, allowAnonymous: propAllowAnonymous }: Login
     }
   }
 
-  // Quick screener guest mode for quick access in clinic
   function handleScreenerGuest() {
     localStorage.setItem("retinaguard_role", "screener");
     localStorage.setItem("retinaguard_email", "screener@local.phc");
@@ -65,72 +64,89 @@ export function LoginPage({ onLogin, allowAnonymous: propAllowAnonymous }: Login
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">RetinaGuard</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Clinical Decision-Support Tool · Diabetic Retinopathy Triage
-        </p>
-        <div className="mt-3 inline-block rounded border-2 border-amber-500 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 tracking-wide uppercase">
-          ⚠ Prototype, not clinically validated
+    <div className="min-h-screen bg-[#F4F7F8] flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md mx-auto">
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#E6F3F4] text-[#0B3C49] mb-3 text-2xl font-bold shadow-sm">
+            👁
+          </div>
+          <h1 className="text-3xl font-extrabold text-[#0B3C49] tracking-tight">RetinaGuard</h1>
+          <p className="mt-1.5 text-base text-slate-600 font-normal">
+            Clinical Decision Support · Diabetic Retinopathy Triage
+          </p>
         </div>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-200">
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 sm:p-8">
           <form className="space-y-5" onSubmit={handleSubmit}>
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-                {error}
+              <div
+                role="alert"
+                className="rounded-xl bg-[#FCF3EE] p-4 text-sm font-medium text-[#D9622B] border border-[#F9E4D9] flex items-start space-x-2"
+              >
+                <span className="text-base leading-none">⚠️</span>
+                <span>{error}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Email address</label>
+              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                Email address
+              </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="clinician@hospital.in"
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 shadow-sm focus:border-[#1B7F86] focus:outline-none focus:ring-2 focus:ring-[#1B7F86]/20 transition"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Password</label>
+              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                Password
+              </label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 shadow-sm focus:border-[#1B7F86] focus:outline-none focus:ring-2 focus:ring-[#1B7F86]/20 transition"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-base font-semibold text-white bg-[#1B7F86] hover:bg-[#15676D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1B7F86] disabled:opacity-50 transition cursor-pointer"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
-            {allowAnonymous && (
-              <div className="mt-6 border-t border-slate-200 pt-4 text-center">
-                <button
-                  type="button"
-                  onClick={handleScreenerGuest}
-                  className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
-                >
-                  Continue as PHC Screener (Screening only) →
-                </button>
-              </div>
-            )}
+          {allowAnonymous && (
+            <div className="mt-5 border-t border-slate-100 pt-4 text-center">
+              <button
+                type="button"
+                onClick={handleScreenerGuest}
+                className="text-sm text-[#1B7F86] hover:text-[#0B3C49] font-medium transition cursor-pointer"
+              >
+                Continue as PHC Screener (Screening only) →
+              </button>
+            </div>
+          )}
+
+          {/* Prototype note under the form */}
+          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-900 bg-amber-50 rounded-full border border-amber-200">
+              Prototype, not clinically validated
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -11,8 +11,11 @@ export function TracePanel({ trace }: { trace?: AgentTraceItem[] }) {
   }
 
   return (
-    <details className="mt-3 border border-slate-200 rounded bg-slate-50 p-3 text-xs text-slate-700">
-      <summary className="font-semibold text-slate-800 cursor-pointer select-none">
+    <details className="mt-3 border border-slate-200/90 rounded-2xl bg-[#F4F7F8] p-3 text-xs text-slate-700">
+      <summary
+        className="font-semibold cursor-pointer select-none"
+        style={{ color: "#1B7F86" }}
+      >
         How this result was made ({trace.length} pipeline steps)
       </summary>
       <div className="mt-3 space-y-2">

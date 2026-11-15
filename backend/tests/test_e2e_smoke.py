@@ -88,7 +88,8 @@ async def test_e2e_three_image_smoke():
         session_factory = get_sessionmaker()
         async with session_factory() as db:
             res = await db.execute(select(User).where(User.email == admin_email))
-            if not res.scalar_one_or_none():
+            existing_admin = res.scalar_one_or_none()
+            if not existing_admin:
                 db.add(
                     User(
                         email=admin_email,
@@ -97,7 +98,9 @@ async def test_e2e_three_image_smoke():
                         is_active=True,
                     )
                 )
-                await db.commit()
+            else:
+                existing_admin.hashed_password = hash_password(admin_pass)
+            await db.commit()
 
         login_resp = await client.post(
             "/auth/login",

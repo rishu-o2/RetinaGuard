@@ -344,7 +344,7 @@ export function ResultCard({
               window.open(`/screenings/${result.screening_id}/report.pdf?${qs.toString()}`, "_blank");
             }}
             aria-label="Download PDF report"
-            className="flex items-center space-x-2 px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition"
+            className="flex items-center space-x-2 px-4 py-2 rounded bg-[#1B7F86] hover:bg-[#145f65] text-white text-sm font-medium transition"
           >
             <span>📄</span>
             <span>{language === "hi" ? "PDF डाउनलोड करें" : "Download PDF"}</span>
@@ -835,13 +835,13 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#F4F7F8] flex flex-col">
       {/* Top Banner */}
-      <header className="bg-slate-900 text-white py-3 px-6 shadow-sm border-b border-slate-800">
+      <header className="bg-[#0B3C49] text-white py-3 px-6 shadow-sm border-b border-[#0a3340]">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <span className="text-xl font-bold tracking-tight text-teal-400">RetinaGuard</span>
-            <span className="text-xs bg-teal-900 text-teal-300 font-semibold px-2 py-0.5 rounded border border-teal-700">
+            <span className="text-xl font-bold tracking-tight text-white">RetinaGuard</span>
+            <span className="text-xs bg-[#1B7F86] text-white font-semibold px-2 py-0.5 rounded border border-[#145f65]">
               India Edition (CDSCO Compliant)
             </span>
           </div>
@@ -849,7 +849,7 @@ export function App() {
           <div className="flex items-center space-x-4">
             {/* Role navigation tabs for Clinician / Admin */}
             {(role === "clinician" || role === "admin") && (
-              <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700">
+              <div className="flex bg-[#0a3340] rounded p-0.5 border border-[#1B7F86]">
                 <button
                   type="button"
                   onClick={() => {
@@ -858,7 +858,7 @@ export function App() {
                   }}
                   className={`text-xs px-3 py-1 rounded font-medium transition ${
                     activeTab === "queue"
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-[#1B7F86] text-white"
                       : "text-slate-300 hover:text-white"
                   }`}
                 >
@@ -869,7 +869,7 @@ export function App() {
                   onClick={() => setActiveTab("screen")}
                   className={`text-xs px-3 py-1 rounded font-medium transition ${
                     activeTab === "screen"
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-[#1B7F86] text-white"
                       : "text-slate-300 hover:text-white"
                   }`}
                 >
@@ -902,7 +902,7 @@ export function App() {
               aria-label="Select Language"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
-              className="bg-slate-800 text-slate-200 text-sm rounded px-3 py-1 border border-slate-700"
+              className="bg-[#0a3340] text-slate-200 text-sm rounded px-3 py-1 border border-[#1B7F86]"
             >
               {availableLocales.length > 0 ? (
                 availableLocales.map((loc) => (
@@ -918,7 +918,7 @@ export function App() {
             {/* User badge and logout */}
             <div className="flex items-center space-x-2 text-xs">
               <span className="text-slate-300 font-mono hidden sm:inline">{userEmail}</span>
-              <span className="bg-slate-800 text-teal-300 px-2 py-0.5 rounded border border-slate-700 uppercase font-semibold">
+              <span className="bg-[#0a3340] text-teal-300 px-2 py-0.5 rounded border border-[#1B7F86] uppercase font-semibold">
                 {role}
               </span>
               <button
@@ -975,9 +975,9 @@ export function App() {
         {/* ── Left: Intake form ── */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-4"
+          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/90 space-y-4"
         >
-          <h2 className="text-base font-semibold text-slate-800">
+          <h2 className="text-base font-semibold" style={{ color: "#0B3C49" }}>
             {language === "hi" ? "जांच इनटेक" : "Screening Intake"}
           </h2>
 
@@ -1180,7 +1180,7 @@ export function App() {
           <button
             type="submit"
             disabled={loading || !selectedFile || !dpdpConsent}
-            className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded text-sm transition"
+            className="w-full bg-[#1B7F86] hover:bg-[#145f65] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-base transition"
           >
             {loading
               ? language === "hi"
@@ -1222,10 +1222,10 @@ export function App() {
             role="button"
             tabIndex={0}
             aria-label="Drop zone for fundus image"
-            className={`bg-white rounded-lg shadow-sm border-2 border-dashed flex flex-col items-center justify-center min-h-[300px] transition cursor-pointer ${
+            className={`bg-white rounded-2xl shadow-sm border-2 border-dashed flex flex-col items-center justify-center min-h-[300px] transition cursor-pointer ${
               isDragging
-                ? "border-teal-400 bg-teal-50"
-                : "border-slate-300 hover:border-teal-400"
+                ? "border-[#1B7F86] bg-teal-50"
+                : "border-[#1B7F86]/40 hover:border-[#1B7F86]"
             }`}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
@@ -1258,7 +1258,7 @@ export function App() {
               </div>
             ) : (
               <div className="text-center text-slate-400 p-6">
-                <div className="text-5xl mb-3">👁️</div>
+                <div className="text-5xl mb-3">📷</div>
                 <p className="text-sm font-medium text-slate-600">
                   {language === "hi"
                     ? "रेटिनल फंडस छवि चुनें या ड्रॉप करें"
@@ -1287,8 +1287,8 @@ export function App() {
 
           {/* Result card */}
           {result && !loading && (
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h3 className="text-base font-semibold text-slate-800 mb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-6">
+              <h3 className="text-base font-semibold mb-4" style={{ color: "#0B3C49" }}>
                 {language === "hi" ? "स्क्रीनिंग परिणाम" : "Screening Result"}
               </h3>
               <ResultCard
@@ -1307,6 +1307,10 @@ export function App() {
         RetinaGuard &copy; 2026. Aligned with AIOS 2020, RSSDI 2022, ICMR, and ICO Diabetic
         Eye Care Guidelines. All data hosted locally in India.
       </footer>
+      {/* Slim prototype bar — never covers content */}
+      <div className="bg-amber-50 border-t border-amber-200 py-1.5 px-4 text-xs text-amber-800 text-center uppercase font-semibold tracking-wide">
+        ⚠ Prototype, not clinically validated — research use only
+      </div>
     </div>
   );
 }
