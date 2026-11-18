@@ -1,8 +1,3 @@
-/**
- * Browser Pre-Check ("Bouncer") for retinal fundus images.
- * Pure functions operating on raw pixel arrays for fast client-side quality triage.
- */
-
 export interface PrecheckThresholds {
   min_width: number;
   min_height: number;

@@ -1,9 +1,3 @@
-"""Model serving and offline sync endpoints.
-
-GET  /model/active   — authenticated; streams the active ONNX file + SHA-256 header
-GET  /model/metadata — authenticated; returns JSON config for offline rules engine
-POST /offline/sync   — authenticated; re-runs pipeline and logs discrepancies
-"""
 from __future__ import annotations
 
 import base64
@@ -50,14 +44,6 @@ def _get_active_registry_entry() -> dict:
     response_class=FileResponse,
 )
 def serve_active_model(current_user: User = Depends(get_current_user)):
-    """Stream the active ONNX model file.
-
-    Returns the raw binary with:
-    - Content-Type: application/octet-stream
-    - X-Model-SHA256: <sha256 from registry> header
-
-    The frontend must verify the SHA-256 before caching.
-    """
     entry = _get_active_registry_entry()
     onnx_path = _REPO_ROOT / entry["onnx_path"]
     if not onnx_path.exists():
@@ -79,10 +65,6 @@ def serve_active_model(current_user: User = Depends(get_current_user)):
     summary="Return active model config for the offline rules engine (authenticated)",
 )
 def serve_model_metadata(current_user: User = Depends(get_current_user)) -> dict:
-    """Return all parameters the offline TypeScript rules engine needs.
-
-    Every threshold comes from YAML/registry — none are hard-coded here.
-    """
     entry = _get_active_registry_entry()
 
     # Load abstention config
@@ -160,9 +142,6 @@ def serve_model_metadata(current_user: User = Depends(get_current_user)) -> dict
     return metadata
 
 
-# ---------------------------------------------------------------------------
-# Offline Sync
-# ---------------------------------------------------------------------------
 
 class OfflineSyncRequest(BaseModel):
     patient_pseudonym_id: str
@@ -174,8 +153,8 @@ class OfflineSyncRequest(BaseModel):
     hba1c: float | None = None
     is_pregnant: bool = False
     language: str = "en"
-    image_b64: str  # base64-encoded image bytes
-    offline_result: dict  # the provisional result from the TS engine
+    image_b64: str
+    offline_result: dict 
 
 
 @sync_router.post(

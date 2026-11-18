@@ -112,6 +112,23 @@ export function ReviewDetail({
 
   const result = data?.result || {};
 
+  // Formatted human-readable metadata (no raw leaked code names)
+  const eyeSideRaw = String(result?.eye_side || data?.eye_side || "").toUpperCase();
+  const eyeSideDisplay =
+    eyeSideRaw === "OD"
+      ? "Right eye (OD)"
+      : eyeSideRaw === "OS"
+      ? "Left eye (OS)"
+      : result?.eye_side || data?.eye_side || "Right eye (OD)";
+
+  const cameraRaw = String(result?.camera_type || data?.camera_type || "").toUpperCase();
+  const cameraTypeDisplay =
+    cameraRaw === "TABLETOP"
+      ? "Tabletop"
+      : cameraRaw === "SMARTPHONE_PORTABLE"
+      ? "Handheld / Smartphone"
+      : result?.camera_type || data?.camera_type || "Tabletop";
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 space-y-6">
       {/* Top bar */}
@@ -127,8 +144,11 @@ export function ReviewDetail({
           <h2 className="text-lg font-bold" style={{ color: "#0B3C49" }}>
             Case: {data.pseudonym_id ? data.pseudonym_id.slice(0, 16) : screeningId}…
           </h2>
-          <p className="text-xs text-slate-400">
-            Model: {data.model_version} · Status: {data.status}
+          <p className="text-xs text-slate-500 mt-0.5">
+            Eye: <span className="font-medium text-slate-700">{eyeSideDisplay}</span> · Modality:{" "}
+            <span className="font-medium text-slate-700">{cameraTypeDisplay}</span> · Model:{" "}
+            <span className="font-mono text-slate-700">{data.model_version || "v1.0.0"}</span> · Status:{" "}
+            <span className="font-semibold text-slate-700 uppercase">{data.status}</span>
           </p>
         </div>
 
@@ -149,7 +169,7 @@ export function ReviewDetail({
       </div>
 
       {/* Prototype Banner */}
-      <div className="rounded-xl border-2 border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 tracking-wide text-center uppercase">
         ⚠ Prototype, not clinically validated · For clinician review only
       </div>
 
@@ -159,7 +179,7 @@ export function ReviewDetail({
         </div>
       )}
 
-      {/* Case Findings Summary */}
+      {/* Structured Card: Findings Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl border border-slate-200/90 bg-[#F4F7F8]">
         <div>
           <div className="text-xs text-slate-500">Predicted Grade</div>
@@ -168,7 +188,7 @@ export function ReviewDetail({
               ? `Grade ${result.grade}`
               : "UNCERTAIN"}
           </div>
-          <div className="text-xs text-slate-600">{result.grade_label_en || ""}</div>
+          <div className="text-xs text-slate-600">{result.grade_label_en || result.grade_label || ""}</div>
         </div>
 
         <div>
@@ -190,16 +210,36 @@ export function ReviewDetail({
           <div className="text-base font-bold" style={{ color: "#0B3C49" }}>
             {result.follow_up_interval_months
               ? `${result.follow_up_interval_months} mo.`
+              : result.follow_up_months
+              ? `${result.follow_up_months} mo.`
               : "Immediate"}
           </div>
         </div>
       </div>
 
-      {/* Text report preview */}
-      {result.report_text && (
-        <div className="p-4 bg-[#F4F7F8] rounded-2xl border border-slate-200/90 text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-48 overflow-y-auto">
-          {result.report_text}
+      {/* Structured Plain-Language Explanation */}
+      {result.guideline_explanation && (
+        <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-200 text-xs text-slate-800 space-y-1">
+          <div className="font-bold text-[#0B3C49]">Clinical Decision Rationale:</div>
+          <p className="leading-relaxed">{result.guideline_explanation}</p>
+          {result.guideline_citations && result.guideline_citations.length > 0 && (
+            <div className="text-[11px] text-teal-800 pt-1">
+              Guidelines: {result.guideline_citations.join(", ")}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Full Report Text (Structured under collapsed details) */}
+      {result.report_text && (
+        <details className="border border-slate-200 rounded-2xl bg-[#F4F7F8] p-3 text-xs">
+          <summary className="font-semibold text-slate-700 cursor-pointer select-none">
+            Full report text
+          </summary>
+          <div className="mt-2 font-mono whitespace-pre-wrap text-slate-700 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200">
+            {result.report_text}
+          </div>
+        </details>
       )}
 
       {/* Pipeline Execution Trace */}

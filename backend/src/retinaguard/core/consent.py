@@ -18,7 +18,7 @@ class ConsentPurpose(str, Enum):
 
 
 class DPDPProcessingConsent(BaseModel):
-    """Explicit consent artefact compliant with DPDP Act 2023 requirements.
+    """Explicit consent artefact aligned with DPDP Act 2023 principles.
 
     Ensures that processing of retinal images and patient metabolic indicators
     is strictly purpose-limited, timestamped, and traceable.

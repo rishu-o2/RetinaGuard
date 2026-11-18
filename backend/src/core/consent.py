@@ -1,9 +1,3 @@
-"""Digital Personal Data Protection (DPDP) Act 2023 consent module.
-
-Implements purpose-bound explicit consent artefacts required for processing
-personal health data under Indian privacy regulations.
-"""
-
 from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID, uuid4
@@ -18,11 +12,6 @@ class ConsentPurpose(str, Enum):
 
 
 class DPDPProcessingConsent(BaseModel):
-    """Explicit consent artefact compliant with DPDP Act 2023 requirements.
-
-    Ensures that processing of retinal images and patient metabolic indicators
-    is strictly purpose-limited, timestamped, and traceable.
-    """
     consent_id: UUID = Field(default_factory=uuid4, description="Unique consent record identifier")
     patient_identifier_hash: str = Field(
         ...,

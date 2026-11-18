@@ -73,7 +73,7 @@ RetinaGuard is built around one rule: **the model predicts, fixed rules decide, 
 * **Abstention, not guessing.** When the probability of referable disease sits near the referral cutoff, the answer is `UNCERTAIN`, never a confident "no DR".
 * **Deterministic rules engine.** Plain, unit-tested Python turns grade, calibrated probabilities and optional patient context into referral status, urgency and a follow-up interval. Grades 3 and 4 are never downgraded.
 * **Sight-threatening escalation.** Even when the predicted grade is mild, a high probability of grade 3 or 4 raises urgency.
-* **Guideline-grounded explanations.** A guideline agent writes a plain-language explanation from approved templates (and, once guideline documents are added, cited passages). A validator rejects any text that contradicts the grade, urgency or interval.
+* **Guideline-grounded explanations.** A guideline agent writes a plain-language explanation from pre-defined clinical templates (and, once guideline documents are added, cited passages). A validator rejects any text that contradicts the grade, urgency or interval.
 * **Clinician in the loop.** Every result, including `UNCERTAIN` ones, lands in a review queue where a clinician confirms or overrides it.
 * **Tamper-evident audit.** Each result and review is appended to a SHA-256 hash chain that can be verified end to end.
 * **Referral report and voice.** A server-side PDF referral letter (English or Hindi) and spoken advice through Sarvam AI Bulbul:v3, with a browser speech fallback.

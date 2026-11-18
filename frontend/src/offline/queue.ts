@@ -1,13 +1,3 @@
-/**
- * IndexedDB Queue for Offline Screening Operations.
- *
- * Requirements:
- * - Store only pseudonymous IDs (NO patient names or direct PHI).
- * - Persist queued image payload and provisional result.
- * - On confirmed sync (HTTP 200), delete queue items.
- * - On failure, keep items and increment retry count for subsequent retry.
- */
-
 export interface OfflineScreeningItem {
   id: string;
   patient_pseudonym_id: string;

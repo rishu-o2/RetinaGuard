@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="RetinaGuard Decision-Support API",
-    description="Clinical decision-support service for Diabetic Retinopathy screening (CDSCO / DPDP compliant)",
+    description="Research prototype clinical decision-support service for Diabetic Retinopathy screening",
     version=__version__,
     lifespan=lifespan,
 )

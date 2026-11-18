@@ -1,9 +1,3 @@
-/**
- * Offline Clinical Decision Rules Engine for RetinaGuard (TypeScript port).
- * Reads the YAML-derived JSON configuration served by GET /model/metadata.
- * NO threshold is hardcoded in this file.
- */
-
 export interface AbstentionConfig {
   lower_edge: number;
   upper_edge: number;

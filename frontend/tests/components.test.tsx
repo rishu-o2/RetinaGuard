@@ -3,9 +3,10 @@ import assert from "node:assert";
 import React from "react";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 
-import { ResultCard, UncertainCard } from "../src/App";
+import { ResultCard, UncertainCard, App } from "../src/App";
 import { LoginPage } from "../src/LoginPage";
 import { ReviewDetail } from "../src/ReviewDetail";
+import { PipelinePanel } from "../src/PipelinePanel";
 
 test("DOM Test 1: ResultCard renders normal referable finding with Grade, Urgency, Follow-up and PDF download", () => {
   cleanup();

@@ -263,8 +263,22 @@ class PDFReportService:
 
         pseudonym_id = result_json.get("patient_pseudonym_id", "UNKNOWN")
         date_str = result_json.get("created_at", timestamp)
-        eye_side = result_json.get("eye_side", "")
-        camera_type = result_json.get("camera_type", "")
+        eye_side_raw = str(result_json.get("eye_side", "")).upper()
+        eye_side = (
+            "Right eye (OD)"
+            if eye_side_raw == "OD"
+            else "Left eye (OS)"
+            if eye_side_raw == "OS"
+            else result_json.get("eye_side", "")
+        )
+        camera_raw = str(result_json.get("camera_type", "")).upper()
+        camera_type = (
+            "Tabletop"
+            if camera_raw == "TABLETOP"
+            else "Handheld / Smartphone"
+            if camera_raw == "SMARTPHONE_PORTABLE"
+            else result_json.get("camera_type", "")
+        )
 
         case_data = [
             [Paragraph("Pseudonymous ID", label_style), Paragraph(str(pseudonym_id), value_style)],

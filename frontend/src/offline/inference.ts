@@ -1,12 +1,3 @@
-/**
- * Offline ONNX Runtime Inference in the browser.
- * Uses onnxruntime-web to execute the active exported model locally.
- * Preprocessing matches the server-side Python implementation exactly:
- * - Resize to 256x256
- * - Normalize by ImageNet mean [0.485, 0.456, 0.406] and std [0.229, 0.224, 0.225]
- * - NCHW Float32Array format
- */
-
 import * as ort from "onnxruntime-web";
 import {
   ModelMetadataConfig,
@@ -35,8 +26,6 @@ export function preprocessRgbaToNCHW(
   height: number,
   targetSize: number = 256
 ): Float32Array {
-  // If already targetSize x targetSize, proceed directly.
-  // Otherwise use nearest/bilinear sampling to targetSize.
   const tensor = new Float32Array(3 * targetSize * targetSize);
   const planeSize = targetSize * targetSize;
 
@@ -66,14 +55,12 @@ export function preprocessRgbaToNCHW(
   return tensor;
 }
 
-/** Compute SHA-256 of an ArrayBuffer in hex string format */
 export async function computeBufferSha256(buffer: ArrayBuffer): Promise<string> {
   if (typeof crypto !== "undefined" && crypto.subtle) {
     const hashBuf = await crypto.subtle.digest("SHA-256", buffer);
     const hashArr = Array.from(new Uint8Array(hashBuf));
     return hashArr.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
-  // Node.js fallback for unit test harnesses
   try {
     const nodeCrypto = await import("node:crypto");
     return nodeCrypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
