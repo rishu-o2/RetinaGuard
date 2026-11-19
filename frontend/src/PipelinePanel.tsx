@@ -407,7 +407,7 @@ export function PipelinePanel({
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-300">
-                    Language: {resultPayload?.report_requested_lang === "hi" ? "hi-IN" : "en-IN"} | Provider: Sarvam AI Bulbul:v3 / WebSpeech
+                    Language: {resultPayload?.report_requested_lang ? `${resultPayload.report_requested_lang}-IN` : "en-IN"} | Provider: Sarvam AI Bulbul:v3
                   </div>
                 </div>
               </div>

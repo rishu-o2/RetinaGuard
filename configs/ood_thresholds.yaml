@@ -1,17 +1,8 @@
-# ==============================================================================
-# RetinaGuard - Out-of-Distribution (OOD) Gate Configuration
-# Standards: Hendrycks et al. (MSP), Liu et al. (Energy Score), Lee et al. (Mahalanobis)
-#
-# NOTE: ALL THRESHOLDS REQUIRE EMPIRICAL VALIDATION & CLINICAL REVIEW.
-# ==============================================================================
-
 version: "1.0.0"
 
-# Optical spectral filter to detect non-fundus photos (faces, documents, outdoor scenes)
-# Real human retina exhibits strong choroidal/hemoglobin red reflectance and low blue reflectance.
 optical_spectrum_filter:
   enabled: true
-  min_red_to_blue_ratio: 1.40          # Red must dominate over blue (fundus choroid) # NEEDS CLINICAL REVIEW
+  min_red_to_blue_ratio: 1.40          
   min_red_to_green_ratio: 1.10         # Red must dominate over green # NEEDS CLINICAL REVIEW
   max_blue_mean_intensity: 120.0       # Vitreous/retina absorbs blue wavelengths heavily # NEEDS CLINICAL REVIEW
   min_retinal_luminance: 15.0          # Must contain discernible non-black tissue # NEEDS CLINICAL REVIEW

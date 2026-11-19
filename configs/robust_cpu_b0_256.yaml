@@ -1,12 +1,3 @@
-# ==============================================================================
-# RetinaGuard - Robust CPU Training Configuration with Camera Augmentation
-# Model: EfficientNet-B0 Dual-Head, 256x256 input
-# ------------------------------------------------------------------------------
-# Trained on APTOS train split ONLY. Checkpoint selection strictly on VAL QWK.
-# Camera-simulating augmentations active on train split.
-# Out-dir: ml/runs/robust_cpu_b0_256
-# ==============================================================================
-
 model:
   backbone: "efficientnet_b0"
   num_classes: 5

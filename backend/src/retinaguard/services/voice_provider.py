@@ -180,7 +180,7 @@ class VoiceProvider(ABC):
 
 
 class SarvamVoiceProvider(VoiceProvider):
-    """Calls the Sarvam AI Bulbul:v3 Text-to-Speech API.
+    """Calls the Sarvam AI Bulbul Text-to-Speech API.
 
     API: https://api.sarvam.ai/text-to-speech
     Model: bulbul:v3
@@ -197,12 +197,13 @@ class SarvamVoiceProvider(VoiceProvider):
         if not api_key:
             raise RuntimeError("SARVAM_API_KEY not configured")
 
+        speaker = os.environ.get("SARVAM_SPEAKER", "shubh")
         target_lang = SARVAM_LANGUAGE_MAP.get(language, "en-IN")
         chunks = _split_text(text, self.MAX_CHARS)
         logger.debug("Sarvam request: %d chunks for target_lang=%s", len(chunks), target_lang)
 
         audio_parts: list[bytes] = []
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(verify=False, timeout=30) as client:
             for chunk in chunks:
                 resp = await client.post(
                     self.API_URL,
@@ -211,7 +212,7 @@ class SarvamVoiceProvider(VoiceProvider):
                         "inputs": [chunk],
                         "target_language_code": target_lang,
                         "model": "bulbul:v3",
-                        "speaker": "shubh",
+                        "speaker": speaker,
                     },
                 )
                 resp.raise_for_status()

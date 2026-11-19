@@ -130,9 +130,9 @@ class QualityGateService:
     ) -> QualityGateResult:
         """Run full classical CV quality evaluation against camera profile thresholds."""
         profile_key = (
-            "smartphone_portable"
-            if camera_type == CameraType.SMARTPHONE_PORTABLE
-            else "tabletop"
+            "tabletop"
+            if camera_type == CameraType.TABLETOP
+            else "smartphone_portable"
         )
         thresh = self.config["profiles"][profile_key]
         messages = self.config["failure_messages"]

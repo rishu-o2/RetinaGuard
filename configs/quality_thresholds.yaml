@@ -1,10 +1,3 @@
-# ==============================================================================
-# RetinaGuard - Image Quality & Pre-Inference Gate Configuration
-# Standards: NHS Diabetic Eye Screening Programme (DESP) / AIOS Screening Guidelines
-#
-# NOTE: ALL THRESHOLDS REQUIRE CLINICAL COMMITTEE REVIEW & EMPIRICAL CALIBRATION.
-# ==============================================================================
-
 version: "1.1.0"
 
 profiles:

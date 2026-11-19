@@ -89,6 +89,24 @@ _DISCLAIMER_HI = (
 # ---------------------------------------------------------------------------
 
 
+def _format_eye(eye: Any, is_en: bool = True) -> str:
+    s = str(getattr(eye, "value", eye)).upper()
+    if "OD" in s or "RIGHT" in s:
+        return "Right eye (OD)" if is_en else "दाईं आंख (OD)"
+    if "OS" in s or "LEFT" in s:
+        return "Left eye (OS)" if is_en else "बाईं आंख (OS)"
+    return s
+
+
+def _format_cam(cam: Any, is_en: bool = True) -> str:
+    s = str(getattr(cam, "value", cam)).upper()
+    if "TABLETOP" in s:
+        return "Tabletop" if is_en else "टेबलटॉप"
+    if "SMARTPHONE" in s or "PORTABLE" in s:
+        return "Smartphone / Portable" if is_en else "स्मार्टफोन / पोर्टेबल"
+    return "Standard" if is_en else "मानक"
+
+
 class ReportService:
     """Generates structured, bilingual, PHI-free screening reports."""
 
@@ -112,18 +130,20 @@ class ReportService:
         referral_text = (_REFERRAL_TEXT_EN if is_en else _REFERRAL_TEXT_HI)[result.referral]
         urgency_text = (_URGENCY_TEXT_EN if is_en else _URGENCY_TEXT_HI)[result.urgency]
         disclaimer = _DISCLAIMER_EN if is_en else _DISCLAIMER_HI
+        eye_formatted = _format_eye(result.eye_side, is_en)
+        cam_formatted = _format_cam(result.camera_type, is_en)
 
         if is_en:
             lines = [
                 "=" * 60,
                 "  RetinaGuard Diabetic Retinopathy Screening Report",
-                "  *** PROTOTYPE ONLY - NOT CLINICALLY VALIDATED ***",
+                "  Clinical Decision Support Summary",
                 "=" * 60,
                 f"Screening ID     : {result.screening_id}",
                 f"Date / Time (UTC): {result.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
                 f"Patient ID       : {result.patient_pseudonym_id}",
-                f"Eye              : {result.eye_side}",
-                f"Camera           : {result.camera_type}",
+                f"Eye              : {eye_formatted}",
+                f"Camera           : {cam_formatted}",
                 "-" * 60,
                 "FINDINGS",
                 f"  DR Grade       : {grade_label}",
@@ -147,13 +167,13 @@ class ReportService:
             lines = [
                 "=" * 60,
                 "  RetinaGuard मधुमेह रेटिनोपैथी जांच रिपोर्ट",
-                "  *** प्रोटोटाइप - चिकित्सकीय रूप से प्रमाणित नहीं ***",
+                "  क्लिनिकल डिसीजन सपोर्ट सारांश",
                 "=" * 60,
                 f"स्क्रीनिंग ID    : {result.screening_id}",
                 f"दिनांक/समय (UTC) : {result.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
                 f"रोगी ID          : {result.patient_pseudonym_id}",
-                f"आंख              : {result.eye_side}",
-                f"कैमरा            : {result.camera_type}",
+                f"आंख              : {eye_formatted}",
+                f"कैमरा            : {cam_formatted}",
                 "-" * 60,
                 "निष्कर्ष",
                 f"  DR ग्रेड        : {grade_label}",

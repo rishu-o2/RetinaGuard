@@ -189,6 +189,12 @@ def is_locale_allowed(lang: str) -> tuple[bool, bool]:
     if reviewed:
         return True, False
 
+    allowed_custom = os.environ.get("ALLOWED_LOCALES")
+    if allowed_custom:
+        custom_set = {x.strip().lower() for x in allowed_custom.split(",") if x.strip()}
+        if lang_clean in custom_set:
+            return True, True
+
     allow_unreviewed = os.environ.get("ALLOW_UNREVIEWED_LOCALES", "false").lower() in ("true", "1", "yes")
     if allow_unreviewed and lang_clean in ("en", "hi"):
         return True, True
@@ -200,6 +206,8 @@ def get_allowed_locales() -> list[dict[str, Any]]:
     """Return list of allowed locale descriptors based on review status and ALLOW_UNREVIEWED_LOCALES."""
     import json
     import os
+    allowed_custom = os.environ.get("ALLOWED_LOCALES")
+    custom_set = {x.strip().lower() for x in allowed_custom.split(",") if x.strip()} if allowed_custom else set()
     allow_unreviewed = os.environ.get("ALLOW_UNREVIEWED_LOCALES", "false").lower() in ("true", "1", "yes")
     locales_dir = _find_repo_root() / "configs" / "locales"
     results = []
@@ -219,6 +227,8 @@ def get_allowed_locales() -> list[dict[str, Any]]:
             )
             if reviewed:
                 results.append({"code": code, "name": name, "reviewed": True})
+            elif custom_set and code in custom_set:
+                results.append({"code": code, "name": name, "reviewed": False, "unreviewed": True})
             elif allow_unreviewed and code in ("en", "hi"):
                 results.append({"code": code, "name": name, "reviewed": False, "unreviewed": True})
         except Exception:

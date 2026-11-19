@@ -10,13 +10,32 @@ Strict Privacy Guard:
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
-from typing import Optional
+from pathlib import Path
+from typing import Any, Optional
 
 from retinaguard.agents.state import ScreeningAgentState
 from retinaguard.core.logging import get_logger
 
 logger = get_logger("retinaguard.agents.voice")
+
+_LOCALES_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _get_locale_dict(lang: str) -> dict[str, Any]:
+    if lang in _LOCALES_CACHE:
+        return _LOCALES_CACHE[lang]
+    try:
+        root = Path(__file__).resolve().parents[4]
+        p = root / "configs" / "locales" / f"{lang}.json"
+        if p.exists():
+            data = json.loads(p.read_text(encoding="utf-8"))
+            _LOCALES_CACHE[lang] = data
+            return data
+    except Exception:
+        pass
+    return {}
 
 
 class VoiceProvider(ABC):
@@ -62,6 +81,12 @@ class VoiceAgent:
                     "सावधानी: रेटिना छवि की गुणवत्ता अनिश्चित है और इसकी पुष्टि नहीं हो सकी। "
                     "यह परिणाम अनिश्चित है। कृपया डॉक्टर से संपर्क करें या पुनः अच्छी रोशनी में नई फोटो लें।"
                 )
+            if lang not in ("en", "hi"):
+                loc = _get_locale_dict(lang)
+                if loc and loc.get("warnings", {}).get("quality_failure"):
+                    q_msg = loc["warnings"]["quality_failure"]
+                    ref_msg = loc.get("referral", {}).get("UNCERTAIN", "Clinician review required.")
+                    return f"{q_msg} {ref_msg}"
             return (
                 "Attention: Retinal image quality check could not be completed with confidence. "
                 "The result is UNCERTAIN. A clinician review or image recapture is mandatory. "
@@ -86,6 +111,16 @@ class VoiceAgent:
                 f"वर्तमान में रेफरल आवश्यक नहीं है। {interval} महीने में अगली नियमित जांच की सलाह दी जाती है। "
                 f"डॉक्टर द्वारा समीक्षा अनिवार्य है।"
             )
+
+        # Other supported Indian locales
+        if lang not in ("en", "hi"):
+            loc = _get_locale_dict(lang)
+            if loc and loc.get("grades"):
+                g_label = loc.get("grades", {}).get(str(grade_num), f"Grade {grade_num}")
+                ref_key = "REFERABLE" if decision.referral.value == "REFERRAL" else "NON_REFERABLE"
+                ref_label = loc.get("referral", {}).get(ref_key, "")
+                urg_label = loc.get("urgency", {}).get(urgency_str.upper(), urgency_str)
+                return f"RetinaGuard: {g_label}. {ref_label}. {urg_label}."
 
         # English
         if decision.referral.value == "REFERRAL":

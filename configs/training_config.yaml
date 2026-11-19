@@ -1,8 +1,3 @@
-# ==============================================================================
-# RetinaGuard - ML Training Configuration
-# Model: EfficientNet Dual-Head (Categorical Logits + Ordinal Regression)
-# ==============================================================================
-
 model:
   backbone: "efficientnet_b0"           # timm / torchvision identifier (b0, b1, b2, b3, b4)
   num_classes: 5                        # ICDR grades 0-4

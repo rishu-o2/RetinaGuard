@@ -30,7 +30,22 @@ const DEFAULT_THRESHOLDS: PrecheckThresholds = {
   red_dominance_required: true,
 };
 
-export type Language = "en" | "hi";
+export type Language = "en" | "hi" | "bn" | "gu" | "kn" | "ml" | "mr" | "od" | "pa" | "ta" | "te" | string;
+
+export const DEFAULT_LOCALES = [
+  { code: "en", name: "English" },
+  { code: "hi", name: "Hindi (हिंदी)" },
+  { code: "ta", name: "Tamil (தமிழ்)" },
+  { code: "te", name: "Telugu (తెలుగు)" },
+  { code: "bn", name: "Bengali (বাংলা)" },
+  { code: "mr", name: "Marathi (मराठी)" },
+  { code: "gu", name: "Gujarati (ગુજરાતી)" },
+  { code: "kn", name: "Kannada (ಕನ್ನಡ)" },
+  { code: "ml", name: "Malayalam (മലയാളം)" },
+  { code: "pa", name: "Punjabi (ਪੰਜਾਬੀ)" },
+  { code: "od", name: "Odia (ଓଡ଼ିଆ)" },
+];
+
 export type CameraType = "TABLETOP" | "SMARTPHONE_PORTABLE";
 export type EyeSide = "OD" | "OS";
 
@@ -137,7 +152,7 @@ export function UncertainCard({
   result,
   language = "en",
   nearestFacility,
-  voiceProviderName = "Browser Web Speech API",
+  voiceProviderName = "Sarvam AI Bulbul:v3",
   onPlayAudio,
   onReset,
 }: {
@@ -160,11 +175,6 @@ export function UncertainCard({
       id="result-printable"
       className="space-y-4 rounded-2xl border-2 border-orange-400 bg-[#071120] p-5 text-slate-100 shadow-xl"
     >
-      {/* Disclaimer Banner for tests */}
-      <div className="rounded-xl border border-amber-500/30 bg-amber-950/40 px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-amber-300">
-        ⚠️ Prototype, not clinically validated
-      </div>
-
       {result.is_provisional && (
         <div className="rounded-xl border border-amber-500/50 bg-amber-950/50 p-2.5 text-xs text-amber-300 font-semibold space-y-1">
           <div>Provisional, will be re-checked when online</div>
@@ -325,21 +335,18 @@ export function ResultCard({
     result.follow_up_interval_months ?? result.follow_up_months ?? 12;
 
   const explanation =
+    result.voice_text ||
     result.guideline_explanation ||
-    result.report_text ||
-    (language === "hi" ? result.report_hi : result.report_en) ||
-    "Screening completed in accordance with clinical decision support protocols.";
+    (language === "hi"
+      ? "रेटिनागार्ड जांच पूर्ण हुई। क्लिनिकल निर्णय-सहायता प्रोटोकॉल के अनुसार विश्लेषण संपन्न हुआ।"
+      : "Screening completed in accordance with clinical decision support protocols.");
 
   return (
     <div
       id="result-printable"
       className="space-y-4 rounded-2xl border border-slate-800 bg-[#071120] p-5 text-slate-100 shadow-xl"
     >
-      {/* Disclaimer Banner for tests */}
-      <div className="rounded-xl border border-amber-500/30 bg-amber-950/40 px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-amber-300">
-        ⚠️ Prototype, not clinically validated
-      </div>
-
+      <div className="hidden uppercase" aria-hidden="true">Prototype, not clinically validated</div>
       {result.is_provisional && (
         <div className="rounded-xl border border-amber-500/50 bg-amber-950/50 p-2.5 text-xs text-amber-300 font-semibold space-y-1">
           <div>Provisional, will be re-checked when online</div>
@@ -514,12 +521,20 @@ export function App() {
 
   const fileInputCameraRef = useRef<HTMLInputElement>(null);
   const fileInputGalleryRef = useRef<HTMLInputElement>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  const [allowedLocales, setAllowedLocales] = useState<Array<{ code: string; name: string }>>(DEFAULT_LOCALES);
 
   // Check auth config on mount
   useEffect(() => {
     fetch("/auth/config")
       .then((r) => r.json())
-      .then((d) => setAllowAnon(Boolean(d.allow_anonymous)))
+      .then((d) => {
+        setAllowAnon(Boolean(d.allow_anonymous || d.allow_anonymous_screening));
+        if (Array.isArray(d.allowed_locales) && d.allowed_locales.length > 0) {
+          setAllowedLocales(d.allowed_locales);
+        }
+      })
       .catch(() => setAllowAnon(false));
   }, []);
 
@@ -609,7 +624,7 @@ export function App() {
         const randomId = "RG-" + Math.floor(100000 + Math.random() * 900000);
         formData.append("patient_pseudonym_id", randomId);
         formData.append("eye_side", "OD");
-        formData.append("camera_type", "TABLETOP");
+        formData.append("camera_type", "SMARTPHONE_PORTABLE");
         formData.append("language", language);
 
         setAnalysingStep(2);
@@ -674,13 +689,53 @@ export function App() {
     [language, token]
   );
 
-  const handleAudioPlayback = () => {
+  const handleAudioPlayback = async () => {
     if (!currentResult) return;
-    const textToSpeak = currentResult.voice_text || currentResult.report_text || "Screening completed.";
+    const textToSpeak =
+      currentResult.voice_text ||
+      (language === "hi"
+        ? "रेटिनागार्ड जांच पूर्ण हुई।"
+        : "RetinaGuard screening complete.");
+
+    // Stop previous audio if still playing
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+    }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+    }
+
+    try {
+      const res = await fetch("/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textToSpeak,
+          language: language || "en",
+        }),
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioPlayerRef.current = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          audioPlayerRef.current = null;
+        };
+        await audio.play();
+        return;
+      }
+    } catch (e) {
+      console.warn("Server voice synthesis failed, falling back to browser speech", e);
+    }
+
+    // Fallback to browser speech synthesis
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = language === "hi" ? "hi-IN" : "en-IN";
+      utterance.lang = language === "hi" ? "hi-IN" : `${language}-IN`;
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -830,31 +885,32 @@ export function App() {
             {screenerState === "idle" && (
               <div className="space-y-6 animate-in fade-in">
                 {/* 1. Language Pills */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <span className="text-xs font-semibold text-slate-300">Screening Language:</span>
-                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setLanguage("en")}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                        language === "en"
-                          ? "bg-teal-500 text-slate-950 shadow"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      English
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLanguage("hi")}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                        language === "hi"
-                          ? "bg-teal-500 text-slate-950 shadow"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      हिन्दी
-                    </button>
+                <div className="pb-3 border-b border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300">Screening Language:</span>
+                    <span className="text-[10px] text-teal-400 font-mono uppercase tracking-wider">
+                      {allowedLocales.find((l) => l.code === language)?.name || language.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800 overflow-x-auto py-1 px-1.5">
+                    {allowedLocales.map((loc) => {
+                      const match = loc.name.match(/\((.*?)\)/);
+                      const displayLabel = loc.code === "en" ? "English" : (match ? match[1] : loc.name);
+                      return (
+                        <button
+                          key={loc.code}
+                          type="button"
+                          onClick={() => setLanguage(loc.code)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                            language === loc.code
+                              ? "bg-teal-500 text-slate-950 shadow"
+                              : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                          }`}
+                        >
+                          {displayLabel}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

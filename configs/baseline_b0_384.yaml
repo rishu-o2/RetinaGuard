@@ -1,8 +1,3 @@
-# ==============================================================================
-# RetinaGuard - Baseline Training Configuration (Colab & Fast Convergence)
-# Model: EfficientNet-B0 Dual-Head (Categorical Logits + Ordinal Regression)
-# ==============================================================================
-
 model:
   backbone: "efficientnet_b0"           # timm / torchvision identifier
   num_classes: 5                        # ICDR grades 0-4

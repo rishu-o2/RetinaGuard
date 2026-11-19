@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
+
+# Load .env from repo root so uvicorn picks up all config vars
+_env_path = Path(__file__).resolve().parents[4] / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path, override=False)
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
